@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>风控平台后台</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div>
+          <div class="brand">
+            <div class="brand-mark">k</div>
+            <div class="brand-text">平台服务中心</div>
+          </div>
+          <nav id="side-nav" class="side-nav"></nav>
+        </div>
+        <div class="sidebar-collapse">☰</div>
+      </aside>
+
+      <div class="main-shell">
+        <header class="topbar">
+          <div class="topbar-nav">
+            <a href="#" class="top-link">项目管理</a>
+            <a href="#" class="top-link active">风控管理</a>
+          </div>
+          <button class="platform-pill" type="button">
+            <span>游客用户平台</span>
+            <span>▾</span>
+          </button>
+        </header>
+
+        <main class="content">
+          <section id="hero-card" class="hero-card"></section>
+          <div id="page-content" class="page-content"></div>
+        </main>
+      </div>
+    </div>
+
+    <div id="drawer-root"></div>
+
+    <template id="condition-row-template">
+      <div class="condition-item">
+        <div class="condition-row">
+          <div class="condition-type-wrap">
+            <select class="chip-select condition-type"></select>
+          </div>
+          <div class="condition-separator">：</div>
+          <div class="condition-fields"></div>
+          <div class="condition-tools">
+            <button type="button" class="tool-btn copy">复制</button>
+            <button type="button" class="tool-btn delete">删除</button>
+            <button type="button" class="tool-btn nested">添加嵌套规则</button>
+            <button type="button" class="tool-btn append">添加规则</button>
+          </div>
+        </div>
+        <div class="child-group"></div>
+      </div>
+    </template>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
