@@ -3233,7 +3233,7 @@ function createGeneratedManagedBehaviorRuleSpec(card) {
   const riskNotes = [
     {
       title: "风险分说明",
-      paragraphs: ["风险分取值范围为0~100，取值越大代表风险越高，取值为零代表无风险。"]
+      paragraphs: ["取值越大代表风险越高，取值为零代表无风险。"]
     }
   ];
 
@@ -3538,7 +3538,7 @@ const managedBehaviorRuleSpecs = {
     notes: [
       {
         title: "风险分说明",
-        paragraphs: ["风险分取值范围为0~100，取值越大代表风险越高，取值为零代表无风险。"]
+        paragraphs: ["风险分取值越大代表风险越高，取值为零代表无风险。"]
       }
     ]
   },
@@ -3569,7 +3569,7 @@ const managedBehaviorRuleSpecs = {
     notes: [
       {
         title: "风险分说明",
-        paragraphs: ["风险分取值范围为0~100，取值越大代表风险越高，取值为零代表无风险。"]
+        paragraphs: ["风险分取值越大代表风险越高，取值为零代表无风险。"]
       }
     ]
   },
@@ -3600,7 +3600,7 @@ const managedBehaviorRuleSpecs = {
     notes: [
       {
         title: "风险分说明",
-        paragraphs: ["风险分取值范围为0~100，取值越大代表风险越高，取值为零代表无风险。"]
+        paragraphs: ["风险分取值越大代表风险越高，取值为零代表无风险。"]
       }
     ]
   },
@@ -3656,7 +3656,7 @@ const managedBehaviorRuleSpecs = {
     notes: [
       {
         title: "风险分说明",
-        paragraphs: ["风险分取值范围为0~100，取值越大代表风险越高，取值为零代表无风险。"]
+        paragraphs: ["风险分取值越大代表风险越高，取值为零代表无风险。"]
       }
     ]
   },
@@ -3687,7 +3687,7 @@ const managedBehaviorRuleSpecs = {
     notes: [
       {
         title: "风险分说明",
-        paragraphs: ["风险分取值范围为0~100，取值越大代表风险越高，取值为零代表无风险。"]
+        paragraphs: ["风险分取值越大代表风险越高，取值为零代表无风险。"]
       }
     ]
   },
@@ -3718,7 +3718,7 @@ const managedBehaviorRuleSpecs = {
     notes: [
       {
         title: "风险分说明",
-        paragraphs: ["风险分取值范围为0~100，取值越大代表风险越高，取值为零代表无风险。"]
+        paragraphs: ["风险分取值越大代表风险越高，取值为零代表无风险。"]
       }
     ]
   }
@@ -7293,7 +7293,7 @@ function renderRiskLogPage(pageKey = "login-log") {
           <select data-log-select="riskBehavior">${optionHtml(["", ...getLogRiskBehaviorOptions(pageKey)], filters.riskBehavior, "请选择风险行为")}</select>
         </label>
         <label class="log-filter-item">
-          <span>风险分 ${renderOverviewInfoBadge("由风控引擎实时计算得出的风险分数（0~100），分值越高代表风险越高")}</span>
+          <span>风险分 ${renderOverviewInfoBadge("由风控引擎实时计算得出的风险分数，分值越高代表风险越高")}</span>
           <div class="log-multi-select">
             <button class="log-multi-select-trigger" type="button" id="log-risk-score-trigger">
               <span>${filters.riskScore.length ? `已选${filters.riskScore.length}项` : "请选择风险分的区间"}</span>
@@ -7383,7 +7383,7 @@ function renderRiskLogPage(pageKey = "login-log") {
             <thead>
               <tr>
                 ${visibleColumns
-                  .map((key) => `<th class="log-col-${key}">${getLogFieldLabel(key)}${["riskBehavior", "riskScore", "action"].includes(key) ? renderLogHeaderInfoTrigger(key === "riskBehavior" ? "本次用户行为涉及到到账号/设备/IP的潜在风险" : key === "riskScore" ? "由风控引擎实时计算得出的风险分数（0~100），分值越高代表风险越高" : "由服务端传入或业务上报的实际处置动作。") : ""}</th>`)
+                  .map((key) => `<th class="log-col-${key}">${getLogFieldLabel(key)}${["riskBehavior", "riskScore", "action"].includes(key) ? renderLogHeaderInfoTrigger(key === "riskBehavior" ? "本次用户行为涉及到到账号/设备/IP的潜在风险" : key === "riskScore" ? "由风控引擎实时计算得出的风险分数，分值越高代表风险越高" : "由服务端传入或业务上报的实际处置动作。") : ""}</th>`)
                   .join("")}
                 <th class="log-col-operation">操作</th>
               </tr>
@@ -9447,8 +9447,8 @@ function renderUserRiskCBlockCards(draft) {
           </div>
         </div>
         <div class="user-risk-c-config-entry">
-          <button class="user-risk-c-tag-entry" type="button" data-c-edit-rule-block="${block.id}" ${isReadonly ? "disabled" : ""}>
-            <span class="user-risk-c-tag-entry-icon" aria-hidden="true"><span class="user-risk-c-tag-entry-plus">+</span></span>
+          <button class="user-risk-c-tag-entry ${block.rules.length ? "has-rules" : ""}" type="button" data-c-edit-rule-block="${block.id}" ${isReadonly ? "disabled" : ""}>
+            <span class="user-risk-c-tag-entry-icon" aria-hidden="true"><span class="user-risk-c-tag-entry-glyph"></span></span>
             <span class="user-risk-c-tag-entry-copy">${escapeHtml(getWorkbenchTagRuleSummaryText(block))}</span>
             <span class="user-risk-c-tag-entry-arrow">›</span>
           </button>
@@ -10154,8 +10154,8 @@ function renderPaymentRiskCBlockCards(draft) {
           </div>
         </div>
         <div class="user-risk-c-config-entry">
-          <button class="user-risk-c-tag-entry" type="button" data-payment-c-edit-rule-block="${block.id}" ${isReadonly ? "disabled" : ""}>
-            <span class="user-risk-c-tag-entry-icon" aria-hidden="true"><span class="user-risk-c-tag-entry-plus">+</span></span>
+          <button class="user-risk-c-tag-entry ${block.rules.length ? "has-rules" : ""}" type="button" data-payment-c-edit-rule-block="${block.id}" ${isReadonly ? "disabled" : ""}>
+            <span class="user-risk-c-tag-entry-icon" aria-hidden="true"><span class="user-risk-c-tag-entry-glyph"></span></span>
             <span class="user-risk-c-tag-entry-copy">${escapeHtml(getWorkbenchTagRuleSummaryText(block))}</span>
             <span class="user-risk-c-tag-entry-arrow">›</span>
           </button>
