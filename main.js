@@ -1,52 +1,59 @@
-﻿
+
 const navItems = [
 
   {
     key: "payment-risk",
     label: "支付风控",
-    icon: "◫",
+    icon: "fa-solid fa-credit-card",
     children: [
       { key: "payment-overview", label: "支付安全概览", page: "payment-overview" },
-      { key: "payment-log", label: "支付风控日志", page: "payment-log" },
-      { key: "payment-risk-engine", label: "支付风控策略", page: "payment-risk-engine" }
+      { key: "payment-risk-engine", label: "支付风控策略", page: "payment-risk-engine" },
+      { key: "payment-log", label: "支付风控日志", page: "payment-log" }
     ]
   },
   {
     key: "user-risk",
     label: "用户风控",
-    icon: "◫",
+    icon: "fa-solid fa-user-shield",
     children: [
       { key: "login-overview", label: "用户安全概览", page: "login-overview" },
-      { key: "login-log", label: "用户风控日志", page: "login-log" },
-      { key: "user-risk-engine", label: "用户风控策略", page: "user-risk-engine" }
+      { key: "user-risk-engine", label: "用户风控策略", page: "user-risk-engine" },
+      { key: "login-log", label: "用户风控日志", page: "login-log" }
     ]
   },
   {
     key: "portrait",
     label: "画像中心",
-    icon: "◎",
+    icon: "fa-solid fa-chart-pie",
     children: [
-      { key: "user-tags", label: "用户标签管理", page: "user-tags" },
-      { key: "user-risk-behavior", label: "风险行为管理", page: "user-risk-behavior" }
+      { key: "user-risk-query", label: "用户风险查询", page: "multi-query" },
+      { key: "user-risk-behavior", label: "实时检测管理", page: "user-risk-behavior" },
+      { key: "user-tags", label: "用户标签管理", page: "user-tags" }
     ]
-  },
-  {
-    key: "blacklist-management",
-    label: "黑名单管理",
-    icon: "☒",
-    page: "blacklist-management"
   },
   {
     key: "whitelist-management",
     label: "白名单管理",
-    icon: "☑",
+    icon: "fa-solid fa-user-check",
     page: "whitelist-management"
   },
   {
     key: "operation-log",
     label: "操作日志",
-    icon: "☷",
+    icon: "fa-solid fa-clock-rotate-left",
     page: "operation-log"
+  },
+  {
+    key: "refund-disposal",
+    label: "欠款账号管理",
+    icon: "fa-solid fa-hand-holding-dollar",
+    page: "refund-disposal"
+  },
+  {
+    key: "repayment-site-config",
+    label: "补款网站配置",
+    icon: "fa-solid fa-link",
+    page: "repayment-site-config"
   }
 ];
 
@@ -390,11 +397,11 @@ const heroCopy = {
     desc: "如需增加其他用户标签，请联系SDK部门进行添加"
   },
   "user-risk-behavior": {
-    title: "风险行为管理",
+    title: "实时检测管理",
     desc: "覆盖登录、注册、支付等关键场景的风险行为识别，支撑业务风险评估"
   },
   "payment-risk-behavior": {
-    title: "风险行为管理",
+    title: "实时检测管理",
     desc: "覆盖登录、注册、支付等关键场景的风险行为识别，支撑业务风险评估"
   },
   overview: {
@@ -430,7 +437,7 @@ const heroCopy = {
     desc: "多维度排查支付链路，快速定位账号、设备与 IP 的资金风险。"
   },
   "multi-query": {
-    title: "多维画像查询",
+    title: "用户风险查询",
     desc: "支持从账号、设备、IP 多维溯源，统一查看登录注册与下单支付相关风险日志。"
   },
   "whitelist-management": {
@@ -444,6 +451,14 @@ const heroCopy = {
   "operation-log": {
     title: "操作日志",
     desc: "记录策略和名单相关的操作明细，便于审计与追溯。"
+  },
+  "refund-disposal": {
+    title: "欠款账号管理",
+    desc: "查询风险命中与处置记录，支持按账号、设备、IP、策略等多条件筛选分析。"
+  },
+  "repayment-site-config": {
+    title: "补款网站配置",
+    desc: "配置用户补款网站地址及相关访问参数。"
   }
 };
 
@@ -580,9 +595,12 @@ const drawerRoot = document.querySelector("#drawer-root");
 const heroCard = document.querySelector("#hero-card");
 const sideNav = document.querySelector("#side-nav");
 const pageContent = document.querySelector("#page-content");
+const topRiskMenu = document.querySelector("#top-risk-menu");
+const topRiskMenuTrigger = document.querySelector(".topbar-nav .top-link.active");
 
 const state = {
-  currentPage: "login-overview",
+  currentPage: "refund-disposal",
+  topModule: "refund",
   overviewScene: "login",
   overviewTrendMode: "request",
   overviewLoading: false,
@@ -707,7 +725,8 @@ const state = {
   blockRuleModalSourcePage: "",
   paymentRiskWorkbenchEntry: "支付下单",
   paymentRiskWorkbenchActiveIds: {
-    支付下单: ""
+    支付下单: "",
+    订单退款: ""
   },
   paymentRiskWorkbenchDraft: null,
   paymentRiskWorkbenchSourceId: "",
@@ -740,6 +759,19 @@ const state = {
   behaviorCardTab: "全部风险行为",
   behaviorFilters: null,
   behaviorFilterDraft: null,
+  refundDisposalFilters: {
+    accountType: "SDKID",
+    account: "",
+    accountStatus: "全部",
+    repaymentStatus: "全部",
+    time: "2026-04-13 12:00:00 ~ 2026-04-13 12:00:00"
+  },
+  refundDisposalAppliedFilters: null,
+  refundDisposalColumnPanelOpen: false,
+  refundDisposalActiveRow: null,
+  refundDisposalRepaymentMode: "ratio",
+  refundDisposalRepaymentCurrency: "USD",
+  refundDisposalRepaymentValue: "100",
   toastVisible: false,
   toastMessage: ""
 };
@@ -2514,7 +2546,7 @@ function renderOverviewStateCard(kind, message) {
 
 const portraitConfigs = {
   "multi-query": {
-    title: "多维画像查询",
+    title: "用户风险查询",
     subtitle: "支持从账号、设备、IP 多维溯源分析，统一查看登录注册与下单支付风险。",
     searchButton: "查询",
     tabs: [
@@ -3812,6 +3844,80 @@ const legacyBehaviorRuleSpecs = {
         ]
       }
     ]
+  },
+  "账号退款订单数量过多": {
+    key: "账号退款订单数量过多",
+    name: "账号退款订单数量过多",
+    aliases: ["账号退款订单过多"],
+    kind: "refund-count",
+    hideSwitch: true,
+    compactLabels: true,
+    summaryCard: {
+      title: "规则说明-账号退款订单过多",
+      conditionLabel: "行为特征",
+      condition: "同一账号，多笔订单的付款未到账（退款或信用卡拒付）",
+      example: "黑产通过苹果退款，骗取游戏道具或资源"
+    },
+    metric: {
+      windowValue: "30",
+      windowUnit: "天内，",
+      countLabel: "累计退款订单数"
+    },
+    countLabel: "订单数",
+    rangeLabel: "订单数",
+    rows: createManagedRuleRows("账号退款订单数量过多", [
+      ["0", "2", "0"],
+      ["2", "+∞", "50"]
+    ]),
+    notes: [
+      {
+        title: "风险分说明",
+        paragraphs: ["风险分取值范围为0~100。取值越大代表风险越高，取值为零代表无风险"]
+      }
+    ]
+  },
+  "账号退款订单金额过大": {
+    key: "账号退款订单金额过大",
+    name: "账号退款订单金额过大",
+    aliases: ["账号退款金额过高"],
+    kind: "refund-amount",
+    hideSwitch: true,
+    compactLabels: true,
+    summaryCard: {
+      title: "规则说明-账号退款金额过高",
+      conditionLabel: "行为特征",
+      condition: "同一账号，订单未到账金额过多（退款或信用卡拒付）",
+      example: "黑产通过苹果退款，骗取游戏道具或资源"
+    },
+    metric: {
+      windowValue: "30",
+      windowUnit: "天内，",
+      countLabel: "累计退款金额"
+    },
+    currencyRules: [
+      {
+        id: "refund-amount-rmb",
+        currency: "RMB",
+        rows: createManagedRuleRows("账号退款订单金额过大-RMB", [
+          ["0", "328", "0"],
+          ["328", "+∞", "50"]
+        ])
+      },
+      {
+        id: "refund-amount-usd",
+        currency: "USD",
+        rows: createManagedRuleRows("账号退款订单金额过大-USD", [
+          ["0", "50", "0"],
+          ["50", "+∞", "50"]
+        ])
+      }
+    ],
+    notes: [
+      {
+        title: "风险分说明",
+        paragraphs: ["风险分取值范围为0~100。取值越大代表风险越高，取值为零代表无风险"]
+      }
+    ]
   }
 };
 
@@ -3822,7 +3928,8 @@ function cloneBehaviorRuleSpec(spec) {
 function getManagedBehaviorRuleSpec(cardOrName) {
   const name = typeof cardOrName === "string" ? cardOrName : cardOrName?.name;
   if (!name) return null;
-  const existing = Object.values(managedBehaviorRuleSpecs).find((spec) => spec.name === name || spec.aliases?.includes(name));
+  const availableSpecs = [...Object.values(managedBehaviorRuleSpecs), ...Object.values(legacyBehaviorRuleSpecs)];
+  const existing = availableSpecs.find((spec) => spec.name === name || spec.aliases?.includes(name));
   if (existing) return existing;
   const card = typeof cardOrName === "string" ? findBehaviorCardByName(name) : cardOrName;
   const generated = createGeneratedManagedBehaviorRuleSpec(card);
@@ -3869,6 +3976,8 @@ function createBehaviorManagementCard(name, description, options = {}) {
   card.displayCoverage = options.coverage || "12,543";
   card.displayTriggerRate = options.triggerRate || "3.2%";
   card.sceneType = options.sceneType || "";
+  card.coverage = options.coverage || card.coverage || "12,543";
+  card.triggerRate = options.triggerRate || card.triggerRate || "3.2%";
   return refreshBehaviorTagCard(card);
 }
 
@@ -3900,7 +4009,9 @@ function getBehaviorManagementCatalog() {
       createBehaviorManagementCard("VPN设备充值", "仅VPN代理网络的设备进行充值", { sceneType: "payment" }),
       createBehaviorManagementCard("账号小额充值", "同一账号，小额充值订单过多", { sceneType: "payment" }),
       createBehaviorManagementCard("账号代充", "同一账号，在多个设备上进行充值", { sceneType: "payment" }),
-      createBehaviorManagementCard("设备撞库破解密码", "短时间内，同一设备多次触发登录密码错误", { sceneType: "payment" })
+      createBehaviorManagementCard("设备撞库破解密码", "短时间内，同一设备多次触发登录密码错误", { sceneType: "payment" }),
+      createBehaviorManagementCard("账号退款订单金额过大", "同一账号，订单未到账金额过多（退款或信用卡拒付）", { sceneType: "refund" }),
+      createBehaviorManagementCard("账号退款订单数量过多", "同一账号，多笔订单的付款未到账（退款或信用卡拒付）", { sceneType: "refund" })
     ]
   };
 }
@@ -4150,6 +4261,37 @@ function createPaymentRiskWorkbenchStore() {
       ],
       savedAt: "2026-04-21 16:40:00",
       savedBy: "wangjian02@dobest.com"
+    },
+    {
+      id: uid(),
+      entry: "订单退款",
+      name: "防退款风控",
+      code: "PRS-REFUND-001",
+      enabled: true,
+      description: "识别账号退款订单金额和数量异常，并按风险分配置补款处置。",
+      effectiveChannels: ["游客用户平台", "官包", "联运包", "H5"],
+      selectedBehaviors: ["账号退款订单金额过大", "账号退款订单数量过多"],
+      behaviorCoefficients: buildBehaviorCoefficientMap(["账号退款订单金额过大", "账号退款订单数量过多"], 1),
+      scoreNotice: "风险总分 = 账号退款订单金额风险分 + 账号退款订单数量风险分",
+      blocks: [
+        createUserRiskWorkbenchBlock({
+          min: "0",
+          max: "50",
+          defaultAction: "暂不处理",
+          rules: []
+        }),
+        createUserRiskWorkbenchBlock({
+          min: "50",
+          max: "+∞",
+          defaultAction: "账号封禁并提示补款",
+          repaymentMode: "网页自助补款",
+          repaymentLink: "https://payment.playbest.net/zh-Hans/pay/51",
+          defaultRepaymentRate: "100",
+          rules: []
+        })
+      ],
+      savedAt: "2026-07-29 10:30:00",
+      savedBy: "wangjian02@dobest.com"
     }
   ];
 }
@@ -4161,7 +4303,11 @@ function createUserRiskWorkbenchBlock(overrides = {}) {
     max: Object.prototype.hasOwnProperty.call(overrides, "max") ? overrides.max : "+∞",
     defaultAction: overrides.defaultAction || "直接放行",
     rules: overrides.rules ? overrides.rules.slice() : [],
-    levelName: overrides.levelName || ""
+    levelName: overrides.levelName || "",
+    extraActions: overrides.extraActions ? overrides.extraActions.slice() : [],
+    repaymentMode: overrides.repaymentMode || "网页自助补款",
+    repaymentLink: overrides.repaymentLink || "https://payment.playbest.net/zh-Hans/pay/51",
+    defaultRepaymentRate: overrides.defaultRepaymentRate || "100"
   };
 }
 
@@ -4263,7 +4409,7 @@ function getPaymentRiskWorkbenchActiveStrategy(entry = state.paymentRiskWorkbenc
 }
 
 function ensurePaymentRiskWorkbenchState() {
-  ["支付下单"].forEach((entry) => {
+  ["支付下单", "订单退款"].forEach((entry) => {
     const strategies = getPaymentRiskWorkbenchStrategies(entry);
     if (!strategies.length) return;
     if (!state.paymentRiskWorkbenchActiveIds[entry] || !strategies.some((item) => item.id === state.paymentRiskWorkbenchActiveIds[entry])) {
@@ -4298,7 +4444,7 @@ function getBehaviorCardsByEntry(entry) {
 }
 
 function getPaymentBehaviorCardsByEntry() {
-  return paymentBehaviorCards.filter((item) => item.enabled !== false).slice();
+  return paymentBehaviorCards.filter((item) => item.enabled !== false && item.sceneType !== "refund").slice();
 }
 
 function getBehaviorCardScoreRange(name) {
@@ -5551,10 +5697,10 @@ function renderRiskLogCell(row, key) {
   }
   if (key === "riskScore") return row.riskScore ?? "--";
   if (key === "action") {
-    return `<span class="risk-log-action-text ${row.tone}">${row.action}</span>`;
+    return `<span class="risk-log-action-text ${row.tone}">${renderRiskActionIcon(row.action)}<span>${escapeHtml(row.action)}</span></span>`;
   }
   if (key === "deviceId") {
-    return `<div class="risk-log-copyable"><button class="risk-log-cell-link truncate" type="button" data-portrait-open="device" data-value="${row.deviceId}" title="${row.deviceId}">${row.deviceId}</button><button class="risk-log-copy-btn" type="button" data-log-copy="${escapeHtml(row.deviceId)}">⧉</button></div>`;
+    return `<div class="risk-log-copyable"><button class="risk-log-cell-link truncate" type="button" data-portrait-open="device" data-value="${row.deviceId}" title="${row.deviceId}">${row.deviceId}</button><button class="risk-log-copy-btn" type="button" data-log-copy="${escapeHtml(row.deviceId)}" aria-label="复制设备ID"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></div>`;
   }
   if (key === "deviceModel") return row.deviceModel;
   if (key === "deviceFingerprint") return row.deviceFingerprint;
@@ -5565,7 +5711,7 @@ function renderRiskLogCell(row, key) {
   if (key === "emulatorUsed") return row.emulatorUsed;
   if (key === "rooted") return row.rooted;
   if (key === "ip") {
-    return `<div class="risk-log-copyable"><button class="risk-log-cell-link truncate" type="button" data-portrait-open="ip" data-value="${row.ip}" title="${row.ip}">${row.ip}</button><button class="risk-log-copy-btn" type="button" data-log-copy="${escapeHtml(row.ip)}">⧉</button></div>`;
+    return `<div class="risk-log-copyable"><button class="risk-log-cell-link truncate" type="button" data-portrait-open="ip" data-value="${row.ip}" title="${row.ip}">${row.ip}</button><button class="risk-log-copy-btn" type="button" data-log-copy="${escapeHtml(row.ip)}" aria-label="复制IP"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></div>`;
   }
   if (key === "networkType") return row.networkType;
   if (key === "ipRegion") return row.ipRegion;
@@ -5578,12 +5724,12 @@ function renderRiskLogCell(row, key) {
   if (key === "sdkVersion") return row.sdkVersion;
   if (key === "channel") return row.channel;
   if (key === "accountNo") {
-    return `<div class="risk-log-copyable"><button class="risk-log-cell-link truncate" type="button" data-portrait-open="account" data-value="${row.accountNo}" title="${row.accountNo}">${row.accountNo}</button><button class="risk-log-copy-btn" type="button" data-log-copy="${escapeHtml(row.accountNo)}">⧉</button></div>`;
+    return `<div class="risk-log-copyable"><button class="risk-log-cell-link truncate" type="button" data-portrait-open="account" data-value="${row.accountNo}" title="${row.accountNo}">${row.accountNo}</button><button class="risk-log-copy-btn" type="button" data-log-copy="${escapeHtml(row.accountNo)}" aria-label="复制账号"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></div>`;
   }
   if (key === "account") {
     return row.account;
   }
-  if (key === "sdkOrderId") return `<div class="risk-log-copyable"><span class="risk-log-text-main truncate" title="${row.sdkOrderId}">${row.sdkOrderId}</span><button class="risk-log-copy-btn" type="button" data-log-copy="${escapeHtml(row.sdkOrderId)}">⧉</button></div>`;
+  if (key === "sdkOrderId") return `<div class="risk-log-copyable"><span class="risk-log-text-main truncate" title="${row.sdkOrderId}">${row.sdkOrderId}</span><button class="risk-log-copy-btn" type="button" data-log-copy="${escapeHtml(row.sdkOrderId)}" aria-label="复制SDK订单号"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></div>`;
   if (key === "cpOrderId") return row.cpOrderId;
   if (key === "currency") return row.currency;
   if (key === "productName") return row.productName;
@@ -5788,7 +5934,7 @@ function renderLogDetailFieldValue(row, field) {
       <span>${escapeHtml(String(value))}</span>
       ${
         canCopyLogDetailField(field.key, row)
-          ? `<button class="log-detail-copy-btn" type="button" data-copy-text="${escapeHtml(String(copyText))}" aria-label="复制${field.label}">⧉</button>`
+          ? `<button class="log-detail-copy-btn" type="button" data-copy-text="${escapeHtml(String(copyText))}" aria-label="复制${field.label}"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>`
           : ""
       }
     </strong>
@@ -6398,7 +6544,76 @@ function ensureActiveRule(form) {
   }
 }
 
+function syncTopModuleTrigger() {
+  if (!topRiskMenuTrigger) return;
+  const label = state.topModule === "refund" ? "退款处理" : "风控管理";
+  const labelNode = topRiskMenuTrigger.querySelector("span");
+  if (labelNode) {
+    labelNode.textContent = label;
+  } else {
+    topRiskMenuTrigger.textContent = label;
+  }
+  topRiskMenuTrigger.setAttribute("aria-label", label);
+}
+function setTopRiskMenuOpen(open) {
+  if (!topRiskMenu || !topRiskMenuTrigger) return;
+  syncTopModuleTrigger();
+  topRiskMenu.hidden = !open;
+  topRiskMenuTrigger.setAttribute("aria-expanded", String(open));
+  topRiskMenu.querySelectorAll("[data-top-menu-page]").forEach((button) => {
+    const page = button.dataset.topMenuPage;
+    const refundModuleActive = page === "refund-disposal" && state.topModule === "refund";
+    const riskManagementActive = page === "payment-risk-engine"
+      && state.topModule === "risk"
+      && ["payment-overview", "payment-risk-engine", "payment-log"].includes(state.currentPage);
+    button.classList.toggle("active", refundModuleActive || riskManagementActive || (state.topModule === "risk" && page === state.currentPage));
+  });
+}
+
+function initializeTopRiskMenu() {
+  if (!topRiskMenu || !topRiskMenuTrigger) return;
+  topRiskMenuTrigger.classList.add("top-menu-trigger");
+  topRiskMenuTrigger.setAttribute("role", "button");
+  topRiskMenuTrigger.setAttribute("aria-haspopup", "menu");
+  topRiskMenuTrigger.setAttribute("aria-expanded", "false");
+  topRiskMenuTrigger.innerHTML = `<span>${state.topModule === "refund" ? "退款处理" : "风控管理"}</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i>`;
+  syncTopModuleTrigger();
+
+  topRiskMenuTrigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setTopRiskMenuOpen(topRiskMenu.hidden);
+  });
+
+  topRiskMenu.addEventListener("click", (event) => {
+    const item = event.target.closest("[data-top-menu-page], [data-top-menu-placeholder]");
+    if (!item) return;
+    const targetPage = item.dataset.topMenuPage;
+    if (targetPage) {
+      state.topModule = targetPage === "refund-disposal" ? "refund" : "risk";
+      syncTopModuleTrigger();
+      renderSideNav();
+      const navTarget = sideNav.querySelector(`[data-nav-page="${targetPage}"]`);
+      if (navTarget) navTarget.click();
+    } else {
+      showToast(`${item.dataset.topMenuPlaceholder}入口暂未开放`);
+    }
+    setTopRiskMenuOpen(false);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!topRiskMenu.hidden && !topRiskMenu.contains(event.target) && !topRiskMenuTrigger.contains(event.target)) {
+      setTopRiskMenuOpen(false);
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setTopRiskMenuOpen(false);
+  });
+}
+
 function renderApp() {
+  syncTopModuleTrigger();
   if (state.currentPage === "user-risk-engine-b" || state.currentPage === "user-risk-engine-c" || state.currentPage === "risk-engine") {
     state.currentPage = "user-risk-engine";
   }
@@ -6412,14 +6627,15 @@ function renderApp() {
 }
 
 function renderSideNav() {
-  sideNav.innerHTML = navItems
+  const refundNavKeys = new Set(["refund-disposal", "repayment-site-config"]);
+  const visibleNavItems = state.topModule === "refund" ? navItems.filter((item) => refundNavKeys.has(item.key)) : navItems.filter((item) => !refundNavKeys.has(item.key));
+  sideNav.innerHTML = visibleNavItems
     .map((item) => {
       if (!item.children) {
         return `
           <button class="nav-item ${state.currentPage === item.page ? "active" : ""}" data-nav-page="${item.page}" type="button">
-            <span class="nav-icon">${item.icon}</span>
+            <span class="nav-icon"><i class="${item.icon}" aria-hidden="true"></i></span>
             <span class="nav-label">${item.label}</span>
-            <span class="nav-arrow">›</span>
           </button>
         `;
       }
@@ -6428,9 +6644,9 @@ function renderSideNav() {
       return `
         <div class="nav-item-group">
           <button class="nav-item ${hasActiveChild ? "active" : ""}" data-nav-page="${item.children[0].page}" type="button">
-            <span class="nav-icon">${item.icon}</span>
+            <span class="nav-icon"><i class="${item.icon}" aria-hidden="true"></i></span>
             <span class="nav-label">${item.label}</span>
-            <span class="nav-arrow">⌃</span>
+            <span class="nav-arrow"><i class="fa-solid fa-chevron-up" aria-hidden="true"></i></span>
           </button>
           <div class="nav-subgroup">
             ${item.children
@@ -6570,7 +6786,174 @@ function renderPage() {
     renderOperationLogPage();
     return;
   }
+  if (state.currentPage === "refund-disposal") {
+    renderRefundDisposalPage();
+    return;
+  }
+  if (state.currentPage === "repayment-site-config") {
+    pageContent.innerHTML = `<section class="placeholder-panel">补款网站配置入口已创建，可继续根据设计稿补充站点地址与访问参数。</section>`;
+    return;
+  }
   pageContent.innerHTML = `<section class="placeholder-panel">当前页面按设计稿保留导航入口，内容可继续补充。</section>`;
+}
+
+const refundDisposalRows = [
+  { index: 6, status: "游戏登录封禁", sdkId: "789123456", passportId: "789123456", account: "789123456", repaymentStatus: "未补款", debt: "USD 12.50", debtOrders: 10, repayment: "USD 12.50", repaymentTime: "-" },
+  { index: 5, status: "正常", sdkId: "654987321", passportId: "654987321", account: "654987321", repaymentStatus: "已补款", debt: "USD 15.99", debtOrders: 2, repayment: "USD 15.99", repaymentTime: "2026-04-13 12:00:00" },
+  { index: 4, status: "游戏登录封禁", sdkId: "543216789", passportId: "543216789", account: "543216789", repaymentStatus: "未补款", debt: "USD 8.75", debtOrders: 3, repayment: "USD 8.75", repaymentTime: "-" },
+  { index: 3, status: "游戏登录封禁", sdkId: "432198765", passportId: "432198765", account: "432198765", repaymentStatus: "未补款", debt: "USD 22.00", debtOrders: 4, repayment: "USD 22.00", repaymentTime: "-" },
+  { index: 2, status: "游戏登录封禁", sdkId: "321654987", passportId: "321654987", account: "321654987", repaymentStatus: "未补款", debt: "USD 10.25", debtOrders: 5, repayment: "USD 10.25", repaymentTime: "-" },
+  { index: 1, status: "游戏登录封禁", sdkId: "219876543", passportId: "219876543", account: "219876543", repaymentStatus: "未补款", debt: "USD 18.50", debtOrders: 6, repayment: "USD 18.50", repaymentTime: "-" }
+];
+
+function getRefundDisposalRows() {
+  const filters = state.refundDisposalAppliedFilters || {};
+  const keyword = String(filters.account || "").trim().toLowerCase();
+  return refundDisposalRows.filter((row) => {
+    const accountField = filters.accountType === "通行证ID" ? row.passportId : row.sdkId;
+    return (!keyword || accountField.toLowerCase().includes(keyword))
+      && (!filters.accountStatus || filters.accountStatus === "全部" || row.status === filters.accountStatus)
+      && (!filters.repaymentStatus || filters.repaymentStatus === "全部" || row.repaymentStatus === filters.repaymentStatus);
+  });
+}
+
+function renderRefundCopyValue(value) {
+  return `<span class="refund-copy-value">${escapeHtml(value)}<button type="button" data-copy-text="${escapeHtml(value)}" aria-label="复制"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></span>`;
+}
+
+function renderRefundDisposalPage() {
+  const filters = state.refundDisposalFilters;
+  const rows = getRefundDisposalRows();
+  pageContent.innerHTML = `
+    <section class="refund-disposal-page">
+      <section class="refund-filter-card">
+        <label class="refund-filter-account">
+          <span>账号</span>
+          <div class="refund-account-control">
+            <select data-refund-filter="accountType">
+              <option ${filters.accountType === "SDKID" ? "selected" : ""}>SDKID</option>
+              <option ${filters.accountType === "通行证ID" ? "selected" : ""}>通行证ID</option>
+            </select>
+            <input data-refund-filter="account" value="${escapeHtml(filters.account)}" placeholder="输入${escapeHtml(filters.accountType)}" />
+          </div>
+        </label>
+        <label>
+          <span>账号状态</span>
+          <select data-refund-filter="accountStatus">
+            ${["全部", "游戏登录封禁", "正常"].map((item) => `<option ${filters.accountStatus === item ? "selected" : ""}>${item}</option>`).join("")}
+          </select>
+        </label>
+        <label>
+          <span>补款状态</span>
+          <select data-refund-filter="repaymentStatus">
+            ${["全部", "未补款", "已补款"].map((item) => `<option ${filters.repaymentStatus === item ? "selected" : ""}>${item}</option>`).join("")}
+          </select>
+        </label>
+        <label class="refund-filter-time">
+          <span>时间</span>
+          <div class="refund-time-control">
+            <input data-refund-filter="time" value="${escapeHtml(filters.time)}" />
+            <i class="fa-regular fa-calendar-days refund-time-icon" aria-hidden="true"></i>
+          </div>
+        </label>
+        <div class="refund-filter-actions">
+          <button class="refund-reset-btn" type="button" data-refund-reset><span>↻</span>重置</button>
+          <button class="refund-query-btn" type="button" data-refund-query><span>⌕</span>查询</button>
+        </div>
+      </section>
+
+      <section class="refund-list-card">
+        <div class="refund-list-toolbar">
+          <h2>账号列表</h2>
+          <div>
+            <button class="refund-tool-btn" type="button" data-refund-columns>▽&nbsp; 显示列配置</button>
+            <button class="refund-tool-btn" type="button" data-refund-export>⇩&nbsp; 导出</button>
+          </div>
+          ${state.refundDisposalColumnPanelOpen ? `
+            <div class="refund-column-panel">
+              <strong>显示列配置</strong>
+              <label><input type="checkbox" checked disabled /> 基础账号信息</label>
+              <label><input type="checkbox" checked /> 欠款信息</label>
+              <label><input type="checkbox" checked /> 补款信息</label>
+            </div>
+          ` : ""}
+        </div>
+        <div class="refund-table-wrap">
+          <table class="refund-disposal-table">
+            <thead>
+              <tr>
+                <th>序号</th><th>账号状态</th><th>SDKID</th><th>通行证ID</th><th>账号名</th>
+                <th>补款状态</th><th>欠款金额</th><th>欠款订单数</th><th>补款金额</th><th>补款时间</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map((row) => `
+                <tr>
+                  <td>${row.index}</td>
+                  <td><span class="refund-status ${row.status === "正常" ? "success" : "danger"}">${row.status}</span></td>
+                  <td>${renderRefundCopyValue(row.sdkId)}</td>
+                  <td>${renderRefundCopyValue(row.passportId)}</td>
+                  <td>${renderRefundCopyValue(row.account)}</td>
+                  <td><span class="refund-status ${row.repaymentStatus === "已补款" ? "success" : "danger"}">${row.repaymentStatus}</span></td>
+                  <td>${row.debt}</td><td>${row.debtOrders}</td><td>${row.repayment}</td><td>${row.repaymentTime}</td>
+                  <td class="refund-actions">
+                    <button type="button" data-refund-debt="${row.index}">查看欠款</button>
+                    <button type="button" data-refund-${row.repaymentStatus === "已补款" ? "detail" : "configure"}="${row.index}">
+                      ${row.repaymentStatus === "已补款" ? "查看补款" : "配置补款"}
+                    </button>
+                  </td>
+                </tr>
+              `).join("") || `<tr><td class="refund-empty" colspan="11">暂无符合条件的账号</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+        <div class="refund-pagination">
+          <span>共${rows.length}条记录</span><button type="button">‹</button><button class="active" type="button">1</button><button type="button">›</button>
+        </div>
+      </section>
+    </section>
+  `;
+
+  pageContent.querySelectorAll("[data-refund-filter]").forEach((control) => {
+    control.addEventListener("input", () => {
+      state.refundDisposalFilters[control.dataset.refundFilter] = control.value;
+      if (control.dataset.refundFilter === "accountType") renderRefundDisposalPage();
+    });
+  });
+  pageContent.querySelector("[data-refund-query]")?.addEventListener("click", () => {
+    state.refundDisposalAppliedFilters = { ...state.refundDisposalFilters };
+    renderRefundDisposalPage();
+  });
+  pageContent.querySelector("[data-refund-reset]")?.addEventListener("click", () => {
+    state.refundDisposalFilters = {
+      accountType: "SDKID",
+      account: "",
+      accountStatus: "全部",
+      repaymentStatus: "全部",
+      time: "2026-04-13 12:00:00 ~ 2026-04-13 12:00:00"
+    };
+    state.refundDisposalAppliedFilters = null;
+    renderRefundDisposalPage();
+  });
+  pageContent.querySelector("[data-refund-columns]")?.addEventListener("click", () => {
+    state.refundDisposalColumnPanelOpen = !state.refundDisposalColumnPanelOpen;
+    renderRefundDisposalPage();
+  });
+  pageContent.querySelector("[data-refund-export]")?.addEventListener("click", () => showToast("导出任务已创建"));
+  pageContent.querySelectorAll("[data-refund-debt]").forEach((button) => button.addEventListener("click", () => openRefundDisposalOverlay("refund-debt", button.dataset.refundDebt)));
+  pageContent.querySelectorAll("[data-refund-configure]").forEach((button) => button.addEventListener("click", () => openRefundDisposalOverlay("refund-configure", button.dataset.refundConfigure)));
+  pageContent.querySelectorAll("[data-refund-detail]").forEach((button) => button.addEventListener("click", () => openRefundDisposalOverlay("refund-detail", button.dataset.refundDetail)));
+  bindCopyActions(pageContent);
+}
+
+function openRefundDisposalOverlay(kind, rowIndex) {
+  state.refundDisposalActiveRow = refundDisposalRows.find((row) => row.index === Number(rowIndex)) || refundDisposalRows[0];
+  state.refundDisposalRepaymentMode = "ratio";
+  state.refundDisposalRepaymentCurrency = "USD";
+  state.refundDisposalRepaymentValue = "100";
+  state.modalOpen = true;
+  state.modalKind = kind;
+  renderOverlay();
 }
 
 function renderAccessListPage(mode) {
@@ -8973,6 +9356,37 @@ function getUserRiskCExtraActionOptions() {
   return ["风控日志标记风险", "发送提示短信/邮件"];
 }
 
+function getRiskActionIconClass(action) {
+  const map = {
+    直接放行: "fa-circle-check",
+    暂不处理: "fa-circle-minus",
+    登录成功: "fa-circle-check",
+    放行: "fa-circle-check",
+    滑块验证: "fa-sliders",
+    验证码验证: "fa-shield-halved",
+    登录拦截: "fa-ban",
+    拦截登录: "fa-ban",
+    注册拦截: "fa-ban",
+    拦截注册: "fa-ban",
+    支付拦截: "fa-ban",
+    拦截下单: "fa-ban",
+    账号封禁: "fa-user-lock",
+    账号封禁并提示补款: "fa-user-lock",
+    设备封禁: "fa-mobile-screen-button",
+    IP封禁: "fa-globe",
+    标记风险: "fa-flag",
+    风控日志标记风险: "fa-flag",
+    "发送提示短信/邮件": "fa-bell",
+    通知提醒: "fa-bell",
+    补款提醒: "fa-wallet"
+  };
+  return map[action] || "fa-circle";
+}
+
+function renderRiskActionIcon(action) {
+  return `<i class="fa-solid ${getRiskActionIconClass(action)} risk-action-library-icon" aria-hidden="true"></i>`;
+}
+
 function getUserRiskCActionCardMeta(action) {
   const map = {
     直接放行: { icon: "✓", title: "直接放行", desc: "允许用户继续登录流程" },
@@ -9423,7 +9837,7 @@ function renderUserRiskCBlockCards(draft) {
                 const meta = getUserRiskCActionCardMeta(action);
                 return `
                   <button class="user-risk-c-inline-action ${block.defaultAction === action ? "active" : ""}" type="button" data-c-block-action="${block.id}" data-c-action-value="${action}" ${isReadonly ? "disabled" : ""}>
-                    <span class="user-risk-c-inline-action-icon">${meta.icon}</span>
+                    <span class="user-risk-c-inline-action-icon">${renderRiskActionIcon(action)}</span>
                     <span>${meta.title}</span>
                   </button>
                 `;
@@ -9808,16 +10222,24 @@ function renderUserRiskCBehaviorConfigModal() {
   });
 }
 
-function getPaymentRiskCActionOptions() {
+function isRefundRiskEntry(entry = state.paymentRiskWorkbenchEntry) {
+  return entry === "订单退款";
+}
+
+function getPaymentRiskCActionOptions(entry = state.paymentRiskWorkbenchEntry) {
+  if (isRefundRiskEntry(entry)) return ["暂不处理", "账号封禁并提示补款"];
   return ["直接放行", "滑块验证", "验证码验证", "支付拦截"];
 }
 
-function getPaymentRiskCExtraActionOptions() {
+function getPaymentRiskCExtraActionOptions(entry = state.paymentRiskWorkbenchEntry) {
+  if (isRefundRiskEntry(entry)) return [];
   return ["风控日志标记风险", "发送提示短信/邮件"];
 }
 
 function getPaymentRiskCActionCardMeta(action) {
   const map = {
+    暂不处理: { icon: "✓", title: "暂不处理", desc: "保留风险记录，不执行账号处置" },
+    账号封禁并提示补款: { icon: "▣", title: "账号封禁并提示补款", desc: "封禁账号并引导用户完成补款" },
     直接放行: { icon: "✓", title: "直接放行", desc: "允许用户继续支付流程" },
     滑块验证: { icon: "◫", title: "滑块验证", desc: "用户需先完成滑块验证" },
     验证码验证: { icon: "#", title: "验证码验证", desc: "发送验证码到绑定手机进行校验" },
@@ -9826,14 +10248,14 @@ function getPaymentRiskCActionCardMeta(action) {
   return map[action] || { icon: "•", title: action, desc: "" };
 }
 
-function createPaymentRiskCDesignBlocks(sourceBlocks = []) {
+function createPaymentRiskCDesignBlocks(sourceBlocks = [], entry = state.paymentRiskWorkbenchEntry) {
   if (sourceBlocks.length) {
     return deepClone(sourceBlocks).map((block) => {
       const extraActions = normalizeStrategyExtraActions(Array.isArray(block.extraActions) ? deepClone(block.extraActions) : []);
-      let defaultAction = normalizeStrategyExtraAction(block.defaultAction || getPaymentRiskCActionOptions()[0]);
-      if (getPaymentRiskCExtraActionOptions().includes(defaultAction)) {
+      let defaultAction = normalizeStrategyExtraAction(block.defaultAction || getPaymentRiskCActionOptions(entry)[0]);
+      if (getPaymentRiskCExtraActionOptions(entry).includes(defaultAction)) {
         if (!extraActions.includes(defaultAction)) extraActions.push(defaultAction);
-        defaultAction = getPaymentRiskCActionOptions()[0];
+        defaultAction = getPaymentRiskCActionOptions(entry)[0];
       }
       return createUserRiskWorkbenchBlock({
         ...block,
@@ -9850,8 +10272,17 @@ function createPaymentRiskCDesignBlocks(sourceBlocks = []) {
   ];
 }
 
+const refundRiskBehaviorDefinitions = paymentBehaviorCards
+  .filter((item) => item.sceneType === "refund")
+  .map((item) => ({
+    ...item,
+    scoreMin: 0,
+    scoreMax: 50
+  }));
+
 function createPaymentRiskCDraft(strategy) {
-  const cards = getPaymentBehaviorCardsByEntry();
+  const isRefund = isRefundRiskEntry(strategy.entry);
+  const cards = isRefund ? refundRiskBehaviorDefinitions : getPaymentBehaviorCardsByEntry();
   const selectedSet = new Set((strategy.selectedBehaviors || []).map((item) => item));
   return {
     id: strategy.id,
@@ -9861,10 +10292,10 @@ function createPaymentRiskCDraft(strategy) {
     enabled: strategy.enabled,
     effectiveChannels: deepClone(strategy.effectiveChannels || []),
     behaviors: cards.map((card, index) => {
-      const scoreRange = parseBehaviorScoreRange(getBehaviorCardScoreRange(card.name));
+      const scoreRange = isRefund ? { min: card.scoreMin, max: card.scoreMax } : parseBehaviorScoreRange(getBehaviorCardScoreRange(card.name));
       return {
         id: `payment-risk-c-behavior-${strategy.id}-${index}`,
-        cardId: card.id,
+        cardId: card.id || `payment-risk-c-card-${index}`,
         sourceName: card.name,
         displayName: card.displayName || card.name,
         description: card.description || "",
@@ -9873,7 +10304,7 @@ function createPaymentRiskCDraft(strategy) {
         selected: selectedSet.has(card.name) || selectedSet.has(card.displayName || card.name)
       };
     }),
-    blocks: createPaymentRiskCDesignBlocks(strategy.blocks || [])
+    blocks: createPaymentRiskCDesignBlocks(strategy.blocks || [], strategy.entry)
   };
 }
 
@@ -9891,7 +10322,7 @@ function ensurePaymentRiskCState() {
   if (!strategy) return null;
   if (!state.paymentRiskWorkbenchCDraft || state.paymentRiskWorkbenchCDraft.sourceId !== strategy.id) {
     state.paymentRiskWorkbenchCDraft = createPaymentRiskCDraft(strategy);
-    state.paymentRiskWorkbenchCMode = "view";
+    state.paymentRiskWorkbenchCMode = isRefundRiskEntry(strategy.entry) ? "edit" : "view";
     state.paymentRiskWorkbenchCSourceId = strategy.id;
     state.paymentRiskWorkbenchCBehaviorModalDraft = null;
     state.paymentRiskWorkbenchCBehaviorModalSearch = "";
@@ -9940,8 +10371,9 @@ function getPaymentRiskCActiveBlockIndex(draft) {
   if (!blocks.length) return -1;
   const savedIndex = blocks.findIndex((item) => item.id === state.paymentRiskWorkbenchCActiveBlockId);
   if (savedIndex >= 0) return savedIndex;
-  state.paymentRiskWorkbenchCActiveBlockId = blocks[0]?.id || "";
-  return 0;
+  const defaultIndex = isRefundRiskEntry(draft.entry) ? blocks.length - 1 : 0;
+  state.paymentRiskWorkbenchCActiveBlockId = blocks[defaultIndex]?.id || "";
+  return defaultIndex;
 }
 
 function insertPaymentRiskCBlockAtValue(draft, value) {
@@ -10011,6 +10443,10 @@ function openPaymentRiskCBehaviorRuleView(cardId) {
     openBehaviorRuleModal(direct.id, "view");
     return;
   }
+  if (refundRiskBehaviorDefinitions.some((item) => item.id === cardId)) {
+    showToast("退款检测规则请在“实时检测管理”中配置");
+    return;
+  }
   const draft = getPaymentRiskCDraft();
   const row = draft?.behaviors?.find((item) => item.cardId === cardId);
   const fallback = row ? paymentBehaviorCards.find((item) => item.name === row.sourceName || item.name === row.displayName) : null;
@@ -10054,7 +10490,14 @@ function renderPaymentRiskCBehaviorTable(draft) {
                     <td>${escapeHtml(item.displayName)}</td>
                     <td>${escapeHtml(item.description)}</td>
                     <td>${escapeHtml(`${item.scoreMin} ~ ${item.scoreMax}`)}</td>
-                    <td><button class="user-risk-c-link-btn" type="button" data-payment-c-view-rule="${item.cardId}">查看规则</button></td>
+                    <td>
+                      <span class="user-risk-c-action-links">
+                        <button class="user-risk-c-link-btn" type="button" data-payment-c-view-rule="${item.cardId}">查看规则</button>
+                        ${
+                          isReadonly ? "" : `<button class="user-risk-c-link-btn refund-risk-remove" type="button" data-payment-c-remove-behavior="${item.id}">移除检测项</button>`
+                        }
+                      </span>
+                    </td>
                   </tr>
                 `).join("")
               : '<tr><td colspan="4" class="user-risk-c-empty-cell">暂无已配置的风险检测项</td></tr>'}
@@ -10104,7 +10547,77 @@ function renderPaymentRiskCAxis(draft) {
   `;
 }
 
+function renderRefundRiskCBlockCards(draft) {
+  const blocks = getPaymentRiskCBlocksForRender(draft);
+  const activeIndex = getPaymentRiskCActiveBlockIndex(draft);
+  const block = blocks[activeIndex];
+  const isReadonly = isPaymentRiskCReadonly();
+  if (!block) return "";
+  const tabHtml = blocks.map((item, index) => `
+      <button class="user-risk-c-card-tab ${index === activeIndex ? "active" : ""}" type="button" data-payment-c-card-tab="${item.id}">
+        ${escapeHtml(`${item.min}~${item.displayMax}`)}
+      </button>
+    `).join("");
+  const showRepayment = block.defaultAction === "账号封禁并提示补款";
+  const showSelfServiceFields = block.repaymentMode !== "联系客服补款";
+  return `
+    <section class="user-risk-c-risk-card refund-risk-c-card">
+      <div class="user-risk-c-risk-card-tabs">
+        <div class="user-risk-c-risk-card-tab-list">${tabHtml}</div>
+      </div>
+      <div class="user-risk-c-card-divider"></div>
+      <div class="refund-risk-c-config">
+        <div class="refund-risk-c-row">
+          <div class="user-risk-c-config-field-label">处置动作：</div>
+          <div class="user-risk-c-inline-action-group">
+            ${getPaymentRiskCActionOptions()
+              .map((action) => {
+                const meta = getPaymentRiskCActionCardMeta(action);
+                return `
+                  <button class="user-risk-c-inline-action ${block.defaultAction === action ? "active" : ""}" type="button" data-payment-c-block-action="${block.id}" data-payment-c-action-value="${action}" ${isReadonly ? "disabled" : ""}>
+                    <span class="user-risk-c-inline-action-icon">${renderRiskActionIcon(action)}</span>
+                    <span>${meta.title}</span>
+                  </button>
+                `;
+              })
+              .join("")}
+          </div>
+        </div>
+        ${
+          showRepayment
+            ? `
+              <div class="refund-risk-c-row">
+                <div class="user-risk-c-config-field-label">补款方式：</div>
+                <div class="refund-risk-c-radio-group">
+                  ${["联系客服补款", "网页自助补款"].map((mode) => `
+                    <label><input type="radio" name="refund-repayment-mode" value="${mode}" data-payment-c-repayment-mode="${block.id}" ${block.repaymentMode === mode ? "checked" : ""} ${isReadonly ? "disabled" : ""} /><span>${mode}</span></label>
+                  `).join("")}
+                </div>
+              </div>
+              ${
+                showSelfServiceFields
+                  ? `
+                    <label class="refund-risk-c-row">
+                      <span class="user-risk-c-config-field-label">补款链接：</span>
+                      <input class="refund-risk-c-input wide" value="${escapeHtml(block.repaymentLink || "")}" data-payment-c-repayment-link="${block.id}" ${isReadonly ? "readonly" : ""} />
+                    </label>
+                    <label class="refund-risk-c-row">
+                      <span class="user-risk-c-config-field-label">默认补款比例：</span>
+                      <span class="refund-risk-c-rate-wrap"><input class="refund-risk-c-input" type="number" min="1" max="100" value="${escapeHtml(block.defaultRepaymentRate || "100")}" data-payment-c-repayment-rate="${block.id}" ${isReadonly ? "readonly" : ""} /><span>%</span></span>
+                    </label>
+                  `
+                  : ""
+              }
+            `
+            : ""
+        }
+      </div>
+    </section>
+  `;
+}
+
 function renderPaymentRiskCBlockCards(draft) {
+  if (isRefundRiskEntry()) return renderRefundRiskCBlockCards(draft);
   const blocks = getPaymentRiskCBlocksForRender(draft);
   const activeIndex = getPaymentRiskCActiveBlockIndex(draft);
   const block = blocks[activeIndex];
@@ -10130,7 +10643,7 @@ function renderPaymentRiskCBlockCards(draft) {
                 const meta = getPaymentRiskCActionCardMeta(action);
                 return `
                   <button class="user-risk-c-inline-action ${block.defaultAction === action ? "active" : ""}" type="button" data-payment-c-block-action="${block.id}" data-payment-c-action-value="${action}" ${isReadonly ? "disabled" : ""}>
-                    <span class="user-risk-c-inline-action-icon">${meta.icon}</span>
+                    <span class="user-risk-c-inline-action-icon">${renderRiskActionIcon(action)}</span>
                     <span>${meta.title}</span>
                   </button>
                 `;
@@ -10180,7 +10693,17 @@ function renderPaymentRiskStrategyCPage() {
         <div class="user-risk-editor-header-main">
           <div class="user-risk-editor-title-row">
             <h1 class="user-risk-editor-title">支付风控策略</h1>
-            <p class="user-risk-editor-desc">支持根据支付风险分与区间配置处置动作，覆盖支付下单等业务场景。</p>
+            <p class="user-risk-editor-desc">支持根据风险得分和用户标签，配置安全处置措施，覆盖下单和退款等业务场景。</p>
+          </div>
+          <div class="user-risk-editor-toolbar">
+            <div class="user-risk-workbench-entry-tabs user-risk-entry-segment">
+              ${[
+                { key: "支付下单", label: "支付下单" },
+                { key: "订单退款", label: "订单退款" }
+              ]
+                .map((item) => `<button class="user-risk-workbench-entry-tab ${state.paymentRiskWorkbenchEntry === item.key ? "active" : ""}" type="button" data-payment-c-entry="${item.key}">${item.label}</button>`)
+                .join("")}
+            </div>
           </div>
         </div>
       </section>
@@ -10201,7 +10724,7 @@ function renderPaymentRiskStrategyCPage() {
               ${
                 isReadonly
                   ? '<button class="primary-btn" type="button" id="payment-risk-c-edit">编辑</button>'
-                  : '<button class="secondary-btn" type="button" id="payment-risk-c-cancel">取消</button><button class="primary-btn" type="button" id="payment-risk-c-publish">保存策略</button>'
+                  : '<button class="secondary-btn" type="button" id="payment-risk-c-cancel">取消</button><button class="primary-btn" type="button" id="payment-risk-c-publish">发布策略</button>'
               }
             </div>
           </section>
@@ -10223,6 +10746,20 @@ function bindPaymentRiskStrategyCEvents(draft) {
   const isReadonly = isPaymentRiskCReadonly();
   ensureUserRiskCHintDismissHandlers();
   ensureUserRiskCDeleteKeyHandler();
+  pageContent.querySelectorAll("[data-payment-c-entry]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.paymentRiskWorkbenchEntry = button.dataset.paymentCEntry;
+      state.paymentRiskWorkbenchDraft = null;
+      state.paymentRiskWorkbenchSourceId = "";
+      state.paymentRiskWorkbenchCDraft = null;
+      state.paymentRiskWorkbenchCSourceId = "";
+      state.paymentRiskWorkbenchCMode = isRefundRiskEntry(button.dataset.paymentCEntry) ? "edit" : "view";
+      state.paymentRiskWorkbenchCActiveBlockId = "";
+      state.paymentRiskWorkbenchCBehaviorModalDraft = null;
+      state.paymentRiskWorkbenchCBehaviorModalSearch = "";
+      renderPaymentRiskStrategyCPage();
+    });
+  });
   pageContent.querySelector("#payment-risk-c-name")?.addEventListener("input", (event) => {
     draft.name = event.target.value;
   });
@@ -10261,6 +10798,15 @@ function bindPaymentRiskStrategyCEvents(draft) {
   });
   pageContent.querySelectorAll("[data-payment-c-view-rule]").forEach((button) => {
     button.addEventListener("click", () => openPaymentRiskCBehaviorRuleView(button.dataset.paymentCViewRule));
+  });
+  pageContent.querySelectorAll("[data-payment-c-remove-behavior]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (isReadonly) return;
+      const behavior = draft.behaviors.find((item) => item.id === button.dataset.paymentCRemoveBehavior);
+      if (!behavior) return;
+      behavior.selected = false;
+      renderPaymentRiskStrategyCPage();
+    });
   });
   pageContent.querySelectorAll("[data-payment-c-axis-tag]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -10301,6 +10847,34 @@ function bindPaymentRiskStrategyCEvents(draft) {
       if (!block) return;
       block.rules = block.rules.filter((rule) => rule.id !== button.dataset.paymentCRemoveRule);
       renderPaymentRiskStrategyCPage();
+    });
+  });
+  pageContent.querySelectorAll("[data-payment-c-repayment-mode]").forEach((field) => {
+    field.addEventListener("change", () => {
+      const block = draft.blocks.find((item) => item.id === field.dataset.paymentCRepaymentMode);
+      if (!block) return;
+      block.repaymentMode = field.value;
+      renderPaymentRiskStrategyCPage();
+    });
+  });
+  pageContent.querySelectorAll("[data-payment-c-repayment-link]").forEach((field) => {
+    field.addEventListener("input", () => {
+      const block = draft.blocks.find((item) => item.id === field.dataset.paymentCRepaymentLink);
+      if (!block) return;
+      block.repaymentLink = field.value;
+    });
+  });
+  pageContent.querySelectorAll("[data-payment-c-repayment-rate]").forEach((field) => {
+    field.addEventListener("input", () => {
+      const block = draft.blocks.find((item) => item.id === field.dataset.paymentCRepaymentRate);
+      if (!block) return;
+      const value = Math.max(1, Math.min(100, Number(field.value || 100)));
+      block.defaultRepaymentRate = String(value);
+    });
+    field.addEventListener("change", () => {
+      const block = draft.blocks.find((item) => item.id === field.dataset.paymentCRepaymentRate);
+      if (!block) return;
+      field.value = block.defaultRepaymentRate || "100";
     });
   });
   pageContent.querySelectorAll("[data-payment-c-edit-rule-block]").forEach((button) => {
@@ -11803,7 +12377,7 @@ function renderPortraitJumpLabel(mode, value, secondary = "") {
   return `
     <div class="portrait-query-jump">
       <span>${escapeHtml(value)}</span>
-      <button class="portrait-query-icon" type="button" data-copy-text="${escapeHtml(value)}" aria-label="复制${mode === "device" ? "设备" : mode === "ip" ? "IP" : "账号"}">⧉</button>
+      <button class="portrait-query-icon" type="button" data-copy-text="${escapeHtml(value)}" aria-label="复制${mode === "device" ? "设备" : mode === "ip" ? "IP" : "账号"}"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>
     </div>
     ${secondary ? `<div class="portrait-table-sub">${escapeHtml(secondary)}</div>` : ""}
   `;
@@ -12307,6 +12881,14 @@ function renderOverlay() {
     renderBlockRuleModal();
     return;
   }
+  if (state.modalKind === "refund-debt" || state.modalKind === "refund-detail") {
+    renderRefundDisposalDrawer();
+    return;
+  }
+  if (state.modalKind === "refund-configure") {
+    renderRefundRepaymentModal();
+    return;
+  }
   if (state.modalKind === "tag-create") {
     renderTagCreateModal();
     return;
@@ -12315,6 +12897,173 @@ function renderOverlay() {
     renderTagUserListModal();
   }
 }
+
+function renderRefundAccountInfo(row) {
+  return `
+    <section class="refund-drawer-section">
+      <h3>账号信息</h3>
+      <div class="refund-detail-grid">
+        <div><span>SDKID</span><strong>${escapeHtml(row.sdkId)}</strong></div>
+        <div><span>通行证ID</span><strong>${escapeHtml(row.passportId)}</strong></div>
+        <div><span>账号名</span><strong>${escapeHtml(row.account)}</strong></div>
+        <div><span>账号状态</span><strong class="${row.status === "正常" ? "refund-detail-success" : "refund-detail-danger"}">${escapeHtml(row.status)}</strong></div>
+      </div>
+    </section>
+  `;
+}
+
+function renderRefundDisposalDrawer() {
+  const row = state.refundDisposalActiveRow || refundDisposalRows[0];
+  const isDebt = state.modalKind === "refund-debt";
+  const debtAmounts = ["12.50", "15.99", "8.75", "22.00", "10.25", "18.50"];
+  drawerRoot.innerHTML = `
+    <div class="refund-overlay">
+      <aside class="refund-detail-drawer">
+        <button class="refund-drawer-close" type="button" aria-label="关闭">×</button>
+        <header>${isDebt ? "账号欠款详情" : "账号补款详情"}</header>
+        <div class="refund-drawer-body">
+          ${renderRefundAccountInfo(row)}
+          ${isDebt ? `
+            <section class="refund-drawer-section">
+              <h3>欠款信息</h3>
+              <div class="refund-debt-table-wrap">
+                <table class="refund-debt-table">
+                  <thead><tr><th>SDK订单号</th><th>订单金额</th><th>支付方式</th><th>下单IP</th><th>下单设备</th><th>下单时间</th></tr></thead>
+                  <tbody>
+                    ${debtAmounts.map((amount, index) => {
+                      const order = ["789123456", "654987321", "543216789", "432198765", "321654987", "219876543"][index];
+                      return `<tr>
+                        <td>${renderRefundCopyValue(`${order}...`)}</td>
+                        <td>USD ${amount}</td><td>ApplePay</td>
+                        <td>${renderRefundCopyValue("192.168.1.10")}</td>
+                        <td>${renderRefundCopyValue(`${order}...`)}</td>
+                        <td>2026-04-13 12:00:00</td>
+                      </tr>`;
+                    }).join("")}
+                  </tbody>
+                </table>
+              </div>
+              <div class="refund-debt-summary">
+                <span>共<strong>10</strong>笔欠款订单，累计金额 <strong>USD 10.00</strong></span>
+                <div class="refund-pagination compact"><button>‹</button><button class="active">1</button><button>›</button></div>
+              </div>
+            </section>
+          ` : `
+            <section class="refund-drawer-section">
+              <h3>订单信息</h3>
+              <div class="refund-detail-grid refund-order-grid">
+                <div><span>SDK订单号</span><strong>${renderRefundCopyValue("1823812381833")}</strong></div>
+                <div><span>三方订单号</span><strong>${renderRefundCopyValue("1823812381833")}</strong></div>
+                <div><span>支付方式</span><strong>微信</strong></div>
+                <div><span>订单来源</span><strong>网页支付</strong></div>
+                <div><span>下单时间</span><strong>2026-04-12 11:22:33</strong></div>
+                <div><span>支付时间</span><strong>2026-04-12 11:22:33</strong></div>
+                <div><span>订单金额</span><strong>648</strong></div>
+                <div><span>订单币种</span><strong>RMB</strong></div>
+                <div><span>实际支付金额</span><strong>648</strong></div>
+                <div><span>实际支付币种</span><strong>RMB</strong></div>
+                <div><span>下单IP</span><strong>${renderRefundCopyValue("123.111.2.0")}</strong></div>
+                <div><span>下单IP归属地</span><strong>山东 济南</strong></div>
+              </div>
+            </section>
+          `}
+        </div>
+      </aside>
+    </div>
+  `;
+  const overlay = drawerRoot.querySelector(".refund-overlay");
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) closeModal();
+  });
+  drawerRoot.querySelector(".refund-drawer-close")?.addEventListener("click", closeModal);
+  bindCopyActions(drawerRoot);
+}
+
+function renderRefundRepaymentModal() {
+  const row = state.refundDisposalActiveRow || refundDisposalRows[0];
+  const mode = state.refundDisposalRepaymentMode;
+  const requiredAmount = row.debt.replace("USD ", "");
+  const repaymentTotalAmount = 100;
+  const calculateRepaymentAmount = (ratioValue) => {
+    const ratio = Number.parseFloat(ratioValue);
+    return Number.isFinite(ratio) ? (repaymentTotalAmount * ratio / 100).toFixed(2) : "0.00";
+  };
+  const repaymentCurrencies = ["USD", "CNY", "EUR", "JPY", "THB", "KRW", "HKD", "MYR", "SGD", "PHP", "VND"];
+  drawerRoot.innerHTML = `
+    <div class="refund-overlay refund-modal-overlay">
+      <section class="refund-repayment-modal">
+        <header>
+          <h2>配置补款标准</h2>
+          <button type="button" aria-label="关闭" data-refund-modal-close>×</button>
+        </header>
+        <div class="refund-repayment-body">
+          <div class="refund-repayment-notice">账号累计退款 3 单，共计 ${repaymentTotalAmount} USD</div>
+          <div class="refund-repayment-form">
+            <div class="refund-form-row">
+              <span>补款要求</span>
+              <label><input type="radio" name="refund-mode" value="ratio" ${mode === "ratio" ? "checked" : ""} /> 固定比例</label>
+              <label><input type="radio" name="refund-mode" value="amount" ${mode === "amount" ? "checked" : ""} /> 自定义金额</label>
+            </div>
+            ${mode === "ratio" ? `
+              <div class="refund-form-row refund-value-row">
+                <span>补款比例</span>
+                <div>
+                  <input type="number" min="1" max="100" value="${escapeHtml(state.refundDisposalRepaymentValue)}" data-refund-repayment-value /><b>%</b>
+                  <small data-refund-calculated-amount>该账号需补款${calculateRepaymentAmount(state.refundDisposalRepaymentValue)} USD</small>
+                </div>
+              </div>
+            ` : `
+              <div class="refund-form-row refund-value-row">
+                <span>补款金额</span>
+                <div class="refund-amount-control">
+                  <div class="refund-currency-select-wrap">
+                    <span class="refund-required-mark" aria-hidden="true">*</span>
+                    <select required aria-label="补款币种（必填）" data-refund-repayment-currency>
+                      ${repaymentCurrencies.map((currency) => `<option value="${currency}"${state.refundDisposalRepaymentCurrency === currency ? " selected" : ""}>${currency}</option>`).join("")}
+                    </select>
+                  </div>
+                  <input type="text" inputmode="decimal" autocomplete="off" aria-label="补款金额" value="${escapeHtml(state.refundDisposalRepaymentValue)}" data-refund-repayment-value />
+                </div>
+              </div>
+            `}
+          </div>
+        </div>
+        <footer>
+          <button class="refund-modal-cancel" type="button" data-refund-modal-close>取消</button>
+          <button class="refund-modal-confirm" type="button" data-refund-modal-confirm>确认</button>
+        </footer>
+      </section>
+    </div>
+  `;
+  const overlay = drawerRoot.querySelector(".refund-overlay");
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) closeModal();
+  });
+  drawerRoot.querySelectorAll("[data-refund-modal-close]").forEach((button) => button.addEventListener("click", closeModal));
+  drawerRoot.querySelectorAll('input[name="refund-mode"]').forEach((input) => input.addEventListener("change", () => {
+    state.refundDisposalRepaymentMode = input.value;
+    state.refundDisposalRepaymentValue = input.value === "ratio" ? "100" : requiredAmount;
+    renderRefundRepaymentModal();
+  }));
+  drawerRoot.querySelector("[data-refund-repayment-currency]")?.addEventListener("change", (event) => {
+    state.refundDisposalRepaymentCurrency = event.target.value;
+  });
+  drawerRoot.querySelector("[data-refund-repayment-value]")?.addEventListener("input", (event) => {
+    state.refundDisposalRepaymentValue = event.target.value;
+    const calculatedAmount = drawerRoot.querySelector("[data-refund-calculated-amount]");
+    if (calculatedAmount) {
+      calculatedAmount.textContent = `该账号需补款${calculateRepaymentAmount(event.target.value)} USD`;
+    }
+  });
+  drawerRoot.querySelector("[data-refund-modal-confirm]")?.addEventListener("click", () => {
+    row.repaymentStatus = "已补款";
+    row.repaymentTime = "2026-04-13 12:00:00";
+    closeModal();
+    showToast("补款标准配置成功");
+    renderApp();
+  });
+}
+
 function renderStrategyModal() {
   const form = state.form;
   if (form.scene === "支付下单") {
@@ -12689,7 +13438,7 @@ function buildConditionNode(group, condition, index, depth) {
   const nestedButtonLabel = node.querySelector(".nested");
   const appendButton = node.querySelector(".append");
 
-  copyButton.innerHTML = `<span class="tool-btn-icon">⧉</span><span>复制</span>`;
+  copyButton.innerHTML = `<span class="tool-btn-icon"><i class="fa-regular fa-copy" aria-hidden="true"></i></span><span>复制</span>`;
   deleteButton.innerHTML = `<span class="tool-btn-icon">✕</span><span>删除</span>`;
   nestedButtonLabel.innerHTML = `<span class="tool-btn-icon">⊞</span><span>添加嵌套规则</span>`;
   appendButton.innerHTML = `<span class="tool-btn-icon">＋</span><span>添加规则</span>`;
@@ -13355,6 +14104,11 @@ function renderBehaviorTagModal() {
   renderBehaviorLevelForm();
 }
 
+function getBehaviorRuleDraftValue(path) {
+  if (!state.behaviorRuleDraft) return undefined;
+  return path.split(".").reduce((cursor, key) => cursor?.[key], state.behaviorRuleDraft);
+}
+
 function setBehaviorRuleDraftValue(path, value) {
   if (!state.behaviorRuleDraft) return;
   const keys = path.split(".");
@@ -13364,10 +14118,11 @@ function setBehaviorRuleDraftValue(path, value) {
   });
   cursor[keys[keys.length - 1]] = value;
 
-   if (keys.length === 3 && keys[2] === "max") {
-    const [sectionKey, rowIndexText] = keys;
+  if (keys[keys.length - 1] === "max") {
+    const rowIndexText = keys[keys.length - 2];
     const rowIndex = Number(rowIndexText);
-    const rows = state.behaviorRuleDraft[sectionKey];
+    const rowsPath = keys.slice(0, -2).join(".");
+    const rows = getBehaviorRuleDraftValue(rowsPath);
     if (Array.isArray(rows) && rowIndex >= 0 && rowIndex < rows.length - 1) {
       rows[rowIndex + 1].min = value;
     }
@@ -13375,8 +14130,8 @@ function setBehaviorRuleDraftValue(path, value) {
 }
 
 function addBehaviorRuleDraftRow(sectionKey, kind) {
-  if (!state.behaviorRuleDraft || !Array.isArray(state.behaviorRuleDraft[sectionKey])) return;
-  const rows = state.behaviorRuleDraft[sectionKey];
+  const rows = getBehaviorRuleDraftValue(sectionKey);
+  if (!Array.isArray(rows)) return;
   if (rows.length < 2) return;
   const prevRow = rows[rows.length - 2];
   const lastRow = rows[rows.length - 1];
@@ -13391,14 +14146,28 @@ function addBehaviorRuleDraftRow(sectionKey, kind) {
 }
 
 function removeBehaviorRuleDraftRow(sectionKey, rowId) {
-  if (!state.behaviorRuleDraft || !Array.isArray(state.behaviorRuleDraft[sectionKey])) return;
-  const rows = state.behaviorRuleDraft[sectionKey];
+  const rows = getBehaviorRuleDraftValue(sectionKey);
+  if (!Array.isArray(rows)) return;
   const index = rows.findIndex((row) => row.id === rowId);
   if (index <= 0 || index >= rows.length - 1) return;
   const prevRow = rows[index - 1];
   const nextRow = rows[index + 1];
   prevRow.max = nextRow.min;
   rows.splice(index, 1);
+}
+
+function addBehaviorRuleCurrency() {
+  const spec = state.behaviorRuleDraft;
+  if (!spec || !Array.isArray(spec.currencyRules)) return;
+  const used = new Set(spec.currencyRules.map((item) => item.currency));
+  const currency = ["RMB", "USD", "EUR", "JPY"].find((item) => !used.has(item));
+  if (!currency) return;
+  const threshold = currency === "JPY" ? "5000" : currency === "EUR" ? "50" : "100";
+  spec.currencyRules.push({
+    id: uid(),
+    currency,
+    rows: createManagedRuleRows(`${spec.key}-${currency}-${uid()}`, [["0", threshold, "0"], [threshold, "+∞", "50"]])
+  });
 }
 
 function saveBehaviorRuleDraft(card) {
@@ -13421,6 +14190,7 @@ function saveBehaviorRuleDraft(card) {
 
 function getBehaviorRuleDetectionNote(card) {
   if (card?.sceneType === "register") return "开启后，风控系统在每次注册时实时执行检测";
+  if (card?.sceneType === "refund") return "开启后，风控系统在每次退款申请时实时执行检测";
   if (card?.sceneType === "payment") return "开启后，风控系统在每次支付时实时执行检测";
   return "开启后，风控系统在每次登录时实时执行检测";
 }
@@ -13454,16 +14224,33 @@ function renderBehaviorRuleInlineValue(path, value, suffix = "", width = 48, rea
 function renderBehaviorRuleSummaryCard(spec) {
   return `
     <section class="behavior-rule-summary-card">
-      <div class="behavior-rule-summary-card-title"><span class="behavior-rule-summary-card-icon">i</span>${escapeHtml(spec.summaryCard.title)}</div>
-      <div class="behavior-rule-summary-card-body">
-        <p>判断条件：${escapeHtml(spec.summaryCard.condition)}</p>
-        <p>场景举例：${escapeHtml(spec.summaryCard.example)}</p>
+      <div class="behavior-rule-summary-card-head">
+        <span class="behavior-rule-summary-card-icon">i</span>
+        <div>
+          <div class="behavior-rule-summary-card-title">${escapeHtml(spec.summaryCard.title)}</div>
+          <div class="behavior-rule-summary-card-body">
+            <p>${escapeHtml(spec.summaryCard.conditionLabel || "判断条件")}：${escapeHtml(spec.summaryCard.condition)}</p>
+            <p>场景举例：${escapeHtml(spec.summaryCard.example)}</p>
+          </div>
+        </div>
       </div>
     </section>
   `;
 }
 
 function renderBehaviorRuleMetricSection(spec) {
+  if (spec.kind === "refund-count" || spec.kind === "refund-amount") {
+    return `
+      <section class="behavior-rule-panel">
+        <div class="behavior-rule-panel-title">统计指标</div>
+        <div class="behavior-rule-metric-line">
+          <span>账号在过去</span>
+          ${renderBehaviorRuleInlineValue("metric.windowValue", spec.metric.windowValue, spec.metric.windowUnit, 90)}
+          <span>${escapeHtml(spec.metric.countLabel)}</span>
+        </div>
+      </section>
+    `;
+  }
   if (spec.kind === "location") {
     return `
       <section class="behavior-rule-panel">
@@ -13565,7 +14352,7 @@ function renderBehaviorRuleBatchTable(spec, sectionKey = "rows") {
   const rangeLabel = spec.rangeLabel || spec.countLabel || "账号数";
   return `
     <section class="behavior-rule-panel">
-      <div class="behavior-rule-panel-title">3. 得分规则</div>
+      <div class="behavior-rule-panel-title">${spec.compactLabels ? "得分规则" : "3. 得分规则"}</div>
       ${spec.notes?.length ? `<div class="behavior-rule-helper">${spec.notes[0].paragraphs.map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>` : ""}
       <div class="behavior-rule-table-wrap">
         <table class="behavior-rule-table behavior-rule-config-table">
@@ -13589,7 +14376,7 @@ function renderBehaviorRuleBatchTable(spec, sectionKey = "rows") {
                     <td>${renderBehaviorRuleInlineValue(`${sectionKey}.${index}.score`, row.score, "", 90)}</td>
                     ${
                       editable
-                        ? `<td>${index === 0 || index === spec.rows.length - 1 ? '<span class="behavior-rule-row-link disabled">删除</span>' : `<button class="behavior-rule-row-link danger" type="button" data-rule-delete-section="${sectionKey}" data-rule-row-id="${row.id}">删除</button>`}<button class="behavior-rule-row-link" type="button" data-rule-add="${sectionKey}">添加</button></td>`
+                        ? `<td><span class="behavior-rule-row-actions">${index === 0 || index === spec.rows.length - 1 ? '<span class="behavior-rule-row-link disabled">删除</span>' : `<button class="behavior-rule-row-link danger" type="button" data-rule-delete-section="${sectionKey}" data-rule-row-id="${row.id}">删除</button>`}<button class="behavior-rule-row-link" type="button" data-rule-add="${sectionKey}">添加</button></span></td>`
                         : ""
                     }
                   </tr>
@@ -13625,10 +14412,72 @@ function renderBehaviorRuleDeviceAnomaly(spec) {
   `;
 }
 
+function renderBehaviorRuleCurrencyTable(spec) {
+  const editable = state.behaviorRuleModalMode === "config";
+  const currencyOptions = ["RMB", "USD", "EUR", "JPY"];
+  return `
+    <section class="behavior-rule-panel">
+      <div class="behavior-rule-panel-title">得分规则</div>
+      ${spec.notes?.length ? `<div class="behavior-rule-helper">${spec.notes[0].paragraphs.map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>` : ""}
+      <div class="behavior-rule-currency-list">
+        ${spec.currencyRules.map((group, groupIndex) => `
+          <section class="behavior-rule-currency-group">
+            <label class="behavior-rule-currency-field">
+              <span>货币类型：</span>
+              ${
+                editable
+                  ? `<select data-rule-path="currencyRules.${groupIndex}.currency">${optionHtml(currencyOptions, group.currency)}</select>`
+                  : `<span class="behavior-rule-currency-value">${escapeHtml(group.currency)}</span>`
+              }
+            </label>
+            <div class="behavior-rule-table-wrap">
+              <table class="behavior-rule-table behavior-rule-config-table">
+                <thead>
+                  <tr>
+                    <th>最小值</th>
+                    <th>统计指标</th>
+                    <th>最大值</th>
+                    <th>风险分</th>
+                    ${editable ? "<th>操作</th>" : ""}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${group.rows.map((row, rowIndex) => {
+                    const rowsPath = `currencyRules.${groupIndex}.rows`;
+                    return `
+                      <tr>
+                        <td>${renderBehaviorRuleInlineValue(`${rowsPath}.${rowIndex}.min`, row.min, "", 90, true)}</td>
+                        <td><span class="behavior-rule-readonly-text">≤ 累计退款金额 ＜</span></td>
+                        <td>${renderBehaviorRuleInlineValue(`${rowsPath}.${rowIndex}.max`, row.max, "", 90, rowIndex === group.rows.length - 1)}</td>
+                        <td>${renderBehaviorRuleInlineValue(`${rowsPath}.${rowIndex}.score`, row.score, "", 90)}</td>
+                        ${
+                          editable
+                            ? `<td><span class="behavior-rule-row-actions">${rowIndex === 0 || rowIndex === group.rows.length - 1 ? '<span class="behavior-rule-row-link disabled">删除</span>' : `<button class="behavior-rule-row-link danger" type="button" data-rule-delete-section="${rowsPath}" data-rule-row-id="${row.id}">删除</button>`}<button class="behavior-rule-row-link" type="button" data-rule-add="${rowsPath}">添加</button></span></td>`
+                            : ""
+                        }
+                      </tr>
+                    `;
+                  }).join("")}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        `).join("")}
+      </div>
+      ${
+        editable && spec.currencyRules.length < currencyOptions.length
+          ? '<button class="behavior-rule-add-currency" type="button" data-rule-add-currency>＋ 添加其他币种规则</button>'
+          : ""
+      }
+    </section>
+  `;
+}
+
 function renderManagedBehaviorRuleContent(spec) {
   if (spec.kind === "location") return renderBehaviorRuleLocationTable(spec);
   if (spec.kind === "speed-threshold") return renderBehaviorRuleSpeedThresholdTable(spec);
   if (spec.kind === "device-anomaly") return renderBehaviorRuleDeviceAnomaly(spec);
+  if (spec.kind === "refund-amount") return renderBehaviorRuleCurrencyTable(spec);
   return renderBehaviorRuleBatchTable(spec);
 }
 
@@ -13693,6 +14542,15 @@ function bindManagedBehaviorRuleModal(card) {
       setBehaviorRuleDraftValue(input.dataset.rulePath, event.target.value);
     });
   });
+  drawerRoot.querySelectorAll("select[data-rule-path]").forEach((select) => {
+    select.addEventListener("change", (event) => {
+      setBehaviorRuleDraftValue(select.dataset.rulePath, event.target.value);
+    });
+  });
+  drawerRoot.querySelector("[data-rule-add-currency]")?.addEventListener("click", () => {
+    addBehaviorRuleCurrency();
+    renderBehaviorRuleModal();
+  });
   drawerRoot.querySelectorAll("[data-rule-add]").forEach((button) => {
     button.addEventListener("click", () => {
       addBehaviorRuleDraftRow(button.dataset.ruleAdd, state.behaviorRuleDraft?.kind);
@@ -13731,7 +14589,7 @@ function renderManagedBehaviorRuleModal(card) {
         </div>
         <div class="behavior-rule-modal-body">
           ${renderBehaviorRuleSummaryCard(spec)}
-          ${renderBehaviorRuleSwitchSection(card, readonly)}
+          ${spec.hideSwitch ? "" : renderBehaviorRuleSwitchSection(card, readonly)}
           ${renderBehaviorRuleMetricSection(spec)}
           ${renderManagedBehaviorRuleContent(spec)}
         </div>
@@ -14649,3 +15507,4 @@ function escapeHtml(value) {
 
 initializePortraitWindowFromQuery();
 renderApp();
+initializeTopRiskMenu();

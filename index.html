@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>风控平台后台</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/all.min.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -16,7 +17,7 @@
           </div>
           <nav id="side-nav" class="side-nav"></nav>
         </div>
-        <div class="sidebar-collapse">☰</div>
+        <div class="sidebar-collapse"><i class="fa-solid fa-bars" aria-hidden="true"></i></div>
       </aside>
 
       <div class="main-shell">
@@ -24,6 +25,56 @@
           <div class="topbar-nav">
             <a href="#" class="top-link">项目管理</a>
             <a href="#" class="top-link active">风控管理</a>
+          </div>
+          <div id="top-risk-menu" class="top-risk-menu" role="menu" aria-label="风控管理工具" hidden>
+            <section class="top-risk-menu-column top-risk-menu-operations">
+              <h3>运营工具</h3>
+              <div class="top-risk-menu-grid">
+                <button type="button" data-top-menu-placeholder="消息推送">
+                  <i class="fa-regular fa-paper-plane" aria-hidden="true"></i><span>消息推送</span>
+                </button>
+                <button type="button" data-top-menu-page="payment-risk-engine">
+                  <i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>风控管理</span>
+                </button>
+                <button type="button" data-top-menu-page="multi-query">
+                  <i class="fa-regular fa-address-card" aria-hidden="true"></i><span>账号管理</span>
+                </button>
+                <button type="button" data-top-menu-placeholder="广告变现">
+                  <i class="fa-regular fa-rectangle-ad" aria-hidden="true"></i><span>广告变现</span>
+                </button>
+                <button type="button" data-top-menu-page="refund-disposal">
+                  <i class="fa-solid fa-hand-holding-dollar" aria-hidden="true"></i><span>退款处理</span>
+                </button>
+              </div>
+            </section>
+            <section class="top-risk-menu-column">
+              <h3>查询工具</h3>
+              <div class="top-risk-menu-grid">
+                <button type="button" data-top-menu-page="multi-query">
+                  <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span>账号查询</span>
+                </button>
+                <button type="button" data-top-menu-page="payment-log">
+                  <i class="fa-solid fa-file-invoice" aria-hidden="true"></i><span>订单查询</span>
+                </button>
+                <button type="button" data-top-menu-page="login-log">
+                  <i class="fa-solid fa-list-check" aria-hidden="true"></i><span>行为日志</span>
+                </button>
+              </div>
+            </section>
+            <section class="top-risk-menu-column">
+              <h3>监控工具</h3>
+              <div class="top-risk-menu-grid">
+                <button type="button" data-top-menu-placeholder="HTTP监控">
+                  <i class="fa-solid fa-globe" aria-hidden="true"></i><span>HTTP监控</span>
+                </button>
+                <button type="button" data-top-menu-placeholder="网络探针">
+                  <i class="fa-solid fa-bullseye" aria-hidden="true"></i><span>网络探针</span>
+                </button>
+                <button type="button" data-top-menu-placeholder="转化分析">
+                  <i class="fa-solid fa-chart-column" aria-hidden="true"></i><span>转化分析</span>
+                </button>
+              </div>
+            </section>
           </div>
           <button class="platform-pill" type="button">
             <span>游客用户平台</span>
