@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>风控平台后台</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/all.min.css" />
-    <link rel="stylesheet" href="./styles.css?v=20260729-2" />
+    <link rel="stylesheet" href="./styles.css?v=20260729-14" />
   </head>
   <body>
     <div class="app-shell">
@@ -30,33 +30,33 @@
             <section class="top-risk-menu-column top-risk-menu-operations">
               <h3>运营工具</h3>
               <div class="top-risk-menu-grid">
-                <button type="button" data-top-menu-placeholder="消息推送">
+                <button type="button" role="menuitem" data-top-menu-placeholder="消息推送" disabled aria-disabled="true">
                   <i class="fa-regular fa-paper-plane" aria-hidden="true"></i><span>消息推送</span>
                 </button>
-                <button type="button" data-top-menu-page="payment-risk-engine">
+                <button type="button" role="menuitem" data-top-menu-page="payment-risk-engine">
                   <i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>风控管理</span>
                 </button>
-                <button type="button" data-top-menu-page="multi-query">
+                <button type="button" role="menuitem" data-top-menu-page="multi-query" disabled aria-disabled="true">
                   <i class="fa-regular fa-address-card" aria-hidden="true"></i><span>账号管理</span>
                 </button>
-                <button type="button" data-top-menu-placeholder="广告变现">
+                <button type="button" role="menuitem" data-top-menu-placeholder="广告变现" disabled aria-disabled="true">
                   <i class="fa-regular fa-rectangle-ad" aria-hidden="true"></i><span>广告变现</span>
                 </button>
-                <button type="button" data-top-menu-page="refund-disposal">
-                  <i class="fa-solid fa-hand-holding-dollar" aria-hidden="true"></i><span>退款处理</span>
+                <button type="button" role="menuitem" data-top-menu-page="refund-disposal">
+                  <i class="fa-solid fa-hand-holding-dollar" aria-hidden="true"></i><span>退款管理</span>
                 </button>
               </div>
             </section>
             <section class="top-risk-menu-column">
               <h3>查询工具</h3>
               <div class="top-risk-menu-grid">
-                <button type="button" data-top-menu-page="multi-query">
+                <button type="button" role="menuitem" data-top-menu-page="multi-query" disabled aria-disabled="true">
                   <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span>账号查询</span>
                 </button>
-                <button type="button" data-top-menu-page="payment-log">
+                <button type="button" role="menuitem" data-top-menu-page="payment-log" disabled aria-disabled="true">
                   <i class="fa-solid fa-file-invoice" aria-hidden="true"></i><span>订单查询</span>
                 </button>
-                <button type="button" data-top-menu-page="login-log">
+                <button type="button" role="menuitem" data-top-menu-page="login-log" disabled aria-disabled="true">
                   <i class="fa-solid fa-list-check" aria-hidden="true"></i><span>行为日志</span>
                 </button>
               </div>
@@ -64,13 +64,13 @@
             <section class="top-risk-menu-column">
               <h3>监控工具</h3>
               <div class="top-risk-menu-grid">
-                <button type="button" data-top-menu-placeholder="HTTP监控">
+                <button type="button" role="menuitem" data-top-menu-placeholder="HTTP监控" disabled aria-disabled="true">
                   <i class="fa-solid fa-globe" aria-hidden="true"></i><span>HTTP监控</span>
                 </button>
-                <button type="button" data-top-menu-placeholder="网络探针">
+                <button type="button" role="menuitem" data-top-menu-placeholder="网络探针" disabled aria-disabled="true">
                   <i class="fa-solid fa-bullseye" aria-hidden="true"></i><span>网络探针</span>
                 </button>
-                <button type="button" data-top-menu-placeholder="转化分析">
+                <button type="button" role="menuitem" data-top-menu-placeholder="转化分析" disabled aria-disabled="true">
                   <i class="fa-solid fa-chart-column" aria-hidden="true"></i><span>转化分析</span>
                 </button>
               </div>
@@ -110,6 +110,6 @@
       </div>
     </template>
 
-    <script src="./main.js?v=20260729-2"></script>
+    <script src="./main.js?v=20260729-14"></script>
   </body>
 </html>
