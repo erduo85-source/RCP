@@ -57,6 +57,19 @@ const navItems = [
   }
 ];
 
+function getInitialNavigationState() {
+  const requestedPage = decodeURIComponent(window.location.hash.slice(1));
+  const availablePages = new Set(
+    navItems.flatMap((item) => item.children?.map((child) => child.page) || [item.page])
+  );
+  const currentPage = availablePages.has(requestedPage) && requestedPage !== "multi-query"
+    ? requestedPage
+    : "refund-disposal";
+  const topModule = ["refund-disposal", "repayment-site-config"].includes(currentPage) ? "refund" : "risk";
+  return { currentPage, topModule };
+}
+
+const initialNavigationState = getInitialNavigationState();
 const scenes = ["账号登录", "账号注册", "支付下单", "短信邮件"];
 
 const sceneActionMap = {
@@ -599,8 +612,8 @@ const topRiskMenu = document.querySelector("#top-risk-menu");
 const topRiskMenuTrigger = document.querySelector(".topbar-nav .top-link.active");
 
 const state = {
-  currentPage: "refund-disposal",
-  topModule: "refund",
+  currentPage: initialNavigationState.currentPage,
+  topModule: initialNavigationState.topModule,
   overviewScene: "login",
   overviewTrendMode: "request",
   overviewLoading: false,
@@ -6667,11 +6680,17 @@ function renderSideNav() {
   sideNav.querySelectorAll("[data-nav-page]").forEach((button) => {
     button.addEventListener("click", () => {
       const nextPage = button.dataset.navPage;
+      if (nextPage === "multi-query") {
+        window.location.href = "./用户风险查询/index.html";
+        return;
+      }
+
       state.currentPage = nextPage === "user-risk-engine-b" || nextPage === "user-risk-engine-c"
         ? "user-risk-engine"
         : nextPage === "payment-risk-engine-b"
           ? "payment-risk-engine"
           : nextPage;
+      window.history.replaceState(null, "", `#${state.currentPage}`);
       if (state.currentPage === "user-risk-engine") {
         state.userRiskWorkbenchBMode = "view";
         state.userRiskWorkbenchDraft = null;
@@ -6791,7 +6810,7 @@ function renderPage() {
     return;
   }
   if (state.currentPage === "repayment-site-config") {
-    pageContent.innerHTML = `<section class="placeholder-panel">补款网站配置入口已创建，可继续根据设计稿补充站点地址与访问参数。</section>`;
+    pageContent.innerHTML = `<section class="placeholder-panel">待确认：是否在充值后台配置？</section>`;
     return;
   }
   pageContent.innerHTML = `<section class="placeholder-panel">当前页面按设计稿保留导航入口，内容可继续补充。</section>`;
