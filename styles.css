@@ -10261,8 +10261,8 @@ body.refund-ban-policy-route .hero-card p{
   background:#fff;
   box-shadow:0 2px 8px rgba(15,23,42,.08)
 }
-.refund-ban-policy-trigger-card{height:286px}
-.refund-ban-policy-action-card{height:321px}
+.refund-ban-policy-trigger-card{height:calc(333px + var(--refund-condition-extra,0) * 55px)}
+.refund-ban-policy-action-card{height:280px}
 .refund-ban-policy-page .refund-ban-section-header{
   top:20px;
   left:20px;
@@ -10304,20 +10304,6 @@ body.refund-ban-policy-route .hero-card p{
   font:400 12px/18px Inter,"PingFang SC","Microsoft YaHei",sans-serif;
   white-space:nowrap
 }
-.refund-ban-policy-relation{
-  height:22px;
-  position:absolute;
-  top:79.97px;
-  right:31.59px;
-  left:51.59px;
-  display:flex;
-  align-items:center;
-  gap:32px;
-  color:#64748b;
-  font-size:13px;
-  line-height:20px
-}
-.refund-ban-policy-relation>span{width:65px;flex:0 0 65px;white-space:nowrap}
 .refund-ban-policy-page .refund-ban-drawer-radio-group{
   gap:24px
 }
@@ -10336,96 +10322,20 @@ body.refund-ban-policy-route .hero-card p{
   gap:5px
 }
 .refund-ban-policy-page .refund-ban-web-method .refund-ban-drawer-tooltip{margin-left:0}
-.refund-ban-policy-rule-table{
-  position:absolute;
-  top:117.97px;
-  right:70.41px;
-  left:51.59px;
-  border-bottom:1px solid #f1f5f9
+.refund-ban-policy-page .refund-ban-trigger-content{
+  width:882px;
+  top:79.97px;
+  left:51.59px
 }
-.refund-ban-policy-rule-head,
-.refund-ban-policy-rule{
-  display:grid;
-  grid-template-columns:38px minmax(280px,320px) minmax(480px,640px) minmax(160px,200px) 105.281px;
-  align-items:center
+.refund-ban-policy-page .refund-ban-condition-table{
+  width:882px;
+  margin-top:16px
 }
-.refund-ban-policy-rule-head>b:last-child,
-.refund-ban-policy-rule>.refund-ban-policy-edit{grid-column:5}
-.refund-ban-policy-rule-head{
-  height:39px;
-  border-bottom:1px solid #e8edf2;
-  background:#f8fafc;
-  color:#64748b
+.refund-ban-policy-page .refund-ban-condition-head,
+.refund-ban-policy-page .refund-ban-condition-row{
+  grid-template-columns:40px 480px 122px 136px 104px
 }
-.refund-ban-policy-rule-head b{
-  min-width:0;
-  padding:0 12px;
-  font-size:12px;
-  line-height:18px;
-  font-weight:700
-}
-.refund-ban-policy-rule{
-  height:45px;
-  border-bottom:1px solid #f1f5f9;
-  background:#fff
-}
-.refund-ban-policy-rule>strong,
-.refund-ban-policy-rule>span{
-  min-width:0;
-  padding:0 12px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font-size:13px;
-  line-height:20px;
-  font-weight:400
-}
-.refund-ban-policy-rule>strong{color:#0f1928}
-.refund-ban-policy-rule>span{color:#64748b}
-.refund-ban-policy-rule:not(.is-enabled)>strong,
-.refund-ban-policy-rule:not(.is-enabled)>span{color:#a3adbb}
-.refund-ban-policy-checkbox{
-  width:38px;
-  height:45px;
-  position:relative;
-  display:grid;
-  place-items:center;
-  cursor:pointer
-}
-.refund-ban-policy-checkbox input{
-  position:absolute;
-  opacity:0;
-  pointer-events:none
-}
-.refund-ban-policy-checkbox>span:not(.sr-only){
-  width:14px;
-  height:14px;
-  display:grid;
-  place-items:center;
-  border:1px solid #d9d9d9;
-  border-radius:2px;
-  background:#fff;
-  overflow:hidden
-}
-.refund-ban-policy-checkbox input:checked+span{border-color:transparent}
-.refund-ban-policy-checkbox img{width:14px;height:14px;display:block}
-.refund-ban-policy-checkbox input:focus-visible+span{box-shadow:0 0 0 3px rgba(24,144,255,.16)}
-.refund-ban-policy-edit{
-  display:inline-flex;
-  align-items:center;
-  justify-self:start;
-  gap:4px;
-  padding:4px 0;
-  border:0;
-  background:transparent;
-  color:#2b7fff;
-  font-size:12px;
-  line-height:16px;
-  font-weight:500;
-  white-space:nowrap
-}
-.refund-ban-policy-edit img{width:12px;height:12px;display:block}
-.refund-ban-policy-edit:hover{color:#0958d9}
+.refund-ban-policy-page .refund-ban-add-condition{width:882px}
 .refund-ban-policy-page .refund-ban-action-content{
   width:724px;
   top:105px;
@@ -10444,12 +10354,6 @@ body.refund-ban-policy-route .hero-card p{
 .refund-ban-policy-page .refund-ban-drawer-tooltip>img{width:16px;height:16px}
 .refund-ban-policy-page .refund-ban-no-action-copy{margin-top:24px}
 
-@media(max-width:1600px){
-  .refund-ban-policy-rule-head,
-  .refund-ban-policy-rule{
-    grid-template-columns:38px minmax(220px,280px) minmax(360px,1fr) minmax(100px,160px) 105px
-  }
-}
 @media(max-width:760px){
   .refund-ban-drawer{max-width:calc(100vw - 32px)}
   .refund-ban-drawer-close{left:-32px;width:32px}

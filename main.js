@@ -608,11 +608,11 @@ const defaultRefundBanPolicy = Object.freeze({
   enabled: true,
   mode: "either-or",
   relation: "or",
-  orderCount: "2",
+  orderCount: "3",
   amount: "100",
   conditions: [
-    { id: "refund-condition-usd", metric: "amount", threshold: "100", unit: "USD", enabled: true },
-    { id: "refund-condition-count", metric: "count", threshold: "2", unit: "笔", enabled: true }
+    { id: "refund-condition-count", metric: "count", threshold: "3", unit: "笔", enabled: true },
+    { id: "refund-condition-usd", metric: "amount", threshold: "100", unit: "USD", enabled: true }
   ],
   disposalAction: "ban",
   repaymentMethods: ["web"],
@@ -7349,66 +7349,13 @@ function bindRefundBanPolicyDrawerActions() {
   });
 }
 
-function getRefundBanPolicyRuleRows() {
-  const conditions = getRefundBanConditions();
-  const amount = conditions.find((condition) => condition.metric === "amount") || {
-    id: "refund-condition-usd",
-    metric: "amount",
-    threshold: "100",
-    unit: "USD",
-    enabled: true
-  };
-  const count = conditions.find((condition) => condition.metric === "count") || {
-    id: "refund-condition-count",
-    metric: "count",
-    threshold: "2",
-    unit: "笔",
-    enabled: true
-  };
-  if (!conditions.includes(amount)) conditions.unshift(amount);
-  if (!conditions.includes(count)) conditions.push(count);
-  return [
-    {
-      kind: "amount",
-      condition: amount,
-      title: "账号累计退款订单金额",
-      description: `统计周期内，账号累计欠款（退款或信用卡拒付等）总金额 ≥ ${escapeHtml(amount.threshold || "")} ${escapeHtml(amount.unit || "USD")}`
-    },
-    {
-      kind: "count",
-      condition: count,
-      title: "账号累计退款订单数量",
-      description: `统计周期内，账号累计欠款（退款或信用卡拒付等）订单数 ≥ ${escapeHtml(count.threshold || "")} 笔`
-    }
-  ];
-}
-
-function renderRefundBanPolicyRuleRow(row) {
-  const enabled = row.condition.enabled !== false;
-  return `
-    <div class="refund-ban-policy-rule ${enabled ? "is-enabled" : ""}">
-      <label class="refund-ban-policy-checkbox">
-        <input type="checkbox" ${enabled ? "checked" : ""} data-refund-ban-policy-condition="${row.kind}" />
-        <span aria-hidden="true">${enabled ? `<img src="./assets/refund-ban/checkbox-checked.svg" alt="" />` : ""}</span>
-        <span class="sr-only">${enabled ? "停用" : "启用"}${row.title}</span>
-      </label>
-      <strong>${row.title}</strong>
-      <span>${row.description}</span>
-      <button class="refund-ban-policy-edit" type="button" data-refund-ban-rule-edit="${row.kind}">
-        <img src="./assets/refund-ban/edit.svg" alt="" aria-hidden="true" />
-        <span>编辑规则</span>
-      </button>
-    </div>
-  `;
-}
-
 function renderRefundBanPolicyPage() {
   prepareRefundBanPolicySession();
   const policy = state.refundBanPolicy;
+  const conditions = getRefundBanConditions(policy);
   const relation = policy.relation || (policy.mode === "either-or" ? "or" : "and");
   const repaymentMethod = policy.repaymentMethods.includes("web") ? "web" : "manual";
   const disposalAction = policy.disposalAction || "ban";
-  const rules = getRefundBanPolicyRuleRows();
 
   pageContent.innerHTML = `
     <section class="refund-ban-policy-page">
@@ -7430,7 +7377,7 @@ function renderRefundBanPolicyPage() {
         </div>
       </section>
 
-      <section class="refund-ban-card refund-ban-policy-trigger-card">
+      <section class="refund-ban-card refund-ban-policy-trigger-card" style="--refund-condition-extra:${Math.max(0, conditions.length - 2)}">
         <header class="refund-ban-section-header">
           <span class="refund-ban-section-badge">1</span>
           <span>
@@ -7438,27 +7385,34 @@ function renderRefundBanPolicyPage() {
             <p>选择需要检测的风险行为，勾选检测项将使用于线上风险评估</p>
           </span>
         </header>
-        <div class="refund-ban-policy-relation">
-          <span>触发要求：</span>
-          <div class="refund-ban-drawer-radio-group refund-ban-trigger-radios" role="radiogroup" aria-label="触发要求">
-            <label>
-              <input type="radio" name="refund-ban-page-relation" value="and" ${relation === "and" ? "checked" : ""} data-refund-ban-page-relation />
-              <span aria-hidden="true"></span><b>满足以下全部条件</b>
-            </label>
-            <label>
-              <input type="radio" name="refund-ban-page-relation" value="or" ${relation === "or" ? "checked" : ""} data-refund-ban-page-relation />
-              <span aria-hidden="true"></span><b>满足以下任一条件</b>
-            </label>
+        <div class="refund-ban-trigger-content">
+          <div class="refund-ban-form-line refund-ban-relation-line">
+            <span>触发要求：</span>
+            <div class="refund-ban-drawer-radio-group refund-ban-trigger-radios" role="radiogroup" aria-label="触发要求">
+              <label>
+                <input type="radio" name="refund-ban-page-relation" value="and" ${relation === "and" ? "checked" : ""} data-refund-ban-page-relation />
+                <span class="refund-ban-radio-visual" aria-hidden="true"></span><b>满足以下全部条件</b>
+              </label>
+              <label>
+                <input type="radio" name="refund-ban-page-relation" value="or" ${relation === "or" ? "checked" : ""} data-refund-ban-page-relation />
+                <span class="refund-ban-radio-visual" aria-hidden="true"></span><b>满足以下任一条件</b>
+              </label>
+            </div>
           </div>
-        </div>
-        <div class="refund-ban-policy-rule-table">
-          <div class="refund-ban-policy-rule-head">
-            <span></span>
-            <b>统计指标</b>
-            <b>判断规则</b>
-            <b>操作</b>
+          <div class="refund-ban-condition-table">
+            <div class="refund-ban-condition-head">
+              <span></span>
+              <b>统计指标</b>
+              <b><i>*</i>触发阈值</b>
+              <b><i>*</i>单位</b>
+              <b>操作</b>
+            </div>
+            ${conditions.map(renderRefundBanConditionRow).join("")}
+            <button class="refund-ban-add-condition" type="button" data-refund-ban-condition-add>
+              <img src="./assets/refund-ban/add.svg" alt="" aria-hidden="true" />
+              <span>添加判断条件</span>
+            </button>
           </div>
-          ${rules.map(renderRefundBanPolicyRuleRow).join("")}
         </div>
       </section>
 
@@ -7529,17 +7483,70 @@ function bindRefundBanPolicyPageActions() {
       renderRefundBanPolicyPage();
     });
   });
-  pageContent.querySelectorAll("[data-refund-ban-policy-condition]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const condition = getRefundBanConditions().find((item) => item.metric === input.dataset.refundBanPolicyCondition);
+  pageContent.querySelectorAll("[data-refund-ban-condition-metric]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const condition = getRefundBanConditions()[Number(select.dataset.refundBanConditionMetric)];
       if (!condition) return;
-      condition.enabled = input.checked;
+      condition.metric = select.value;
+      condition.unit = condition.metric === "count" ? "笔" : (condition.unit === "笔" ? "USD" : condition.unit);
       syncRefundBanConditionLegacyFields();
       renderRefundBanPolicyPage();
     });
   });
-  pageContent.querySelectorAll("[data-refund-ban-rule-edit]").forEach((button) => {
-    button.addEventListener("click", () => openRefundBanRuleModal(button.dataset.refundBanRuleEdit));
+
+  pageContent.querySelectorAll("[data-refund-ban-condition-threshold]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const condition = getRefundBanConditions()[Number(input.dataset.refundBanConditionThreshold)];
+      if (!condition) return;
+      condition.threshold = input.value;
+      syncRefundBanConditionLegacyFields();
+    });
+  });
+
+  pageContent.querySelectorAll("[data-refund-ban-condition-unit]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const condition = getRefundBanConditions()[Number(select.dataset.refundBanConditionUnit)];
+      if (!condition) return;
+      condition.unit = select.value;
+      syncRefundBanConditionLegacyFields();
+    });
+  });
+
+  pageContent.querySelectorAll("[data-refund-ban-condition-copy]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const conditions = getRefundBanConditions();
+      const index = Number(button.dataset.refundBanConditionCopy);
+      const source = conditions[index];
+      if (!source) return;
+      conditions.splice(index + 1, 0, { ...source, id: `refund-condition-${uid()}` });
+      syncRefundBanConditionLegacyFields();
+      renderRefundBanPolicyPage();
+    });
+  });
+
+  pageContent.querySelectorAll("[data-refund-ban-condition-delete]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const conditions = getRefundBanConditions();
+      if (conditions.length <= 1) {
+        showToast("至少保留一个判断条件");
+        return;
+      }
+      conditions.splice(Number(button.dataset.refundBanConditionDelete), 1);
+      syncRefundBanConditionLegacyFields();
+      renderRefundBanPolicyPage();
+    });
+  });
+
+  pageContent.querySelector("[data-refund-ban-condition-add]")?.addEventListener("click", () => {
+    getRefundBanConditions().push({
+      id: `refund-condition-${uid()}`,
+      metric: "amount",
+      threshold: "100",
+      unit: "USD",
+      enabled: true
+    });
+    syncRefundBanConditionLegacyFields();
+    renderRefundBanPolicyPage();
   });
   pageContent.querySelectorAll("[data-refund-ban-page-action]").forEach((button) => {
     button.addEventListener("click", () => {
