@@ -15,6 +15,8 @@
   --shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
   --card-radius: 10px;
   --panel-radius: 16px;
+  --shell-sidebar-width: 168px;
+  --shell-top-height: 60px;
   --font-family-base: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-page-title-size: 16px;
   --font-page-title-line-height: 24px;
@@ -86,8 +88,8 @@ button {
 }
 
 .sidebar {
-  width: 168px;
-  min-width: 168px;
+  width: var(--shell-sidebar-width);
+  min-width: var(--shell-sidebar-width);
   background: #fff;
   border-right: 1px solid rgba(23, 35, 68, 0.06);
   display: flex;
@@ -96,13 +98,27 @@ button {
 }
 
 .brand {
-  height: 60px;
-  background: var(--navy);
+  height: var(--shell-top-height);
+  position: relative;
+  background-color: #141f3d;
+  background-image: url("./用户风险查询/assets/top-navigation-design.png");
+  background-repeat: no-repeat;
+  background-position: left top;
+  background-size: 100vw var(--shell-top-height);
   color: #fff;
   padding: 0 14px 0 10px;
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.brand::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 0 150px;
+  background: #141f3d;
+  pointer-events: none;
 }
 
 .brand-mark {
@@ -114,12 +130,14 @@ button {
   font-size: 30px;
   font-weight: 700;
   transform: rotate(-8deg);
+  visibility: hidden;
 }
 
 .brand-text {
   font-size: 13px;
   line-height: 20px;
   font-weight: 600;
+  visibility: hidden;
 }
 
 .side-nav {
@@ -209,8 +227,12 @@ button {
 }
 
 .topbar {
-  height: 60px;
-  background: var(--navy);
+  height: var(--shell-top-height);
+  background-color: #141f3d;
+  background-image: url("./用户风险查询/assets/top-navigation-design.png");
+  background-repeat: no-repeat;
+  background-position: calc(-1 * var(--shell-sidebar-width)) top;
+  background-size: 100vw var(--shell-top-height);
   color: #fff;
   display: flex;
   align-items: center;
@@ -220,7 +242,21 @@ button {
   padding: 0 10px;
 }
 
+.topbar::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 250px;
+  background: #141f3d;
+  pointer-events: none;
+}
+
 .topbar-nav {
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 34px;
 }
@@ -357,6 +393,8 @@ button {
   font-size: 14px;
   line-height: 20px;
   font-weight: 500;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .content {
@@ -10432,7 +10470,9 @@ body.refund-ban-policy-route,
 body.refund-disposal-route{
   --refund-shell-sidebar-width:222.41px;
   --refund-shell-top-height:65px;
-  --refund-shell-title-height:99px
+  --refund-shell-title-height:99px;
+  --shell-sidebar-width:var(--refund-shell-sidebar-width);
+  --shell-top-height:var(--refund-shell-top-height)
 }
 body.refund-ban-policy-route .sidebar,
 body.refund-disposal-route .sidebar{
@@ -10998,6 +11038,7 @@ body.refund-disposal-route .hero-card p{
 .refund-unban-reason-row>label{padding-top:6px}
 .refund-unban-row textarea{width:330px;height:110px;resize:none;padding:8px 12px;border:1px solid #d9d9d9;border-radius:3px;color:#1f2937;font:400 13px/20px Inter,"PingFang SC","Microsoft YaHei",sans-serif;outline:0}
 .refund-unban-row textarea::placeholder{color:#8c8c8c}
+.refund-unban-row[hidden]{display:none}
 .refund-unban-modal>footer{display:flex;align-items:center;justify-content:center;gap:28px;border-top:1px solid #eef0f3}
 .refund-unban-modal>footer button{width:88px;height:32px;border-radius:4px;font-size:14px;line-height:20px}
 .refund-repayment-modal{width:520px;min-height:318px;display:grid;grid-template-rows:64px minmax(190px,auto) 52px;background:#fff;border-radius:6px;box-shadow:0 8px 12px rgba(0,0,0,.22);overflow:hidden}

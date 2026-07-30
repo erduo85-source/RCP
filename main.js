@@ -798,7 +798,7 @@ const state = {
   },
   refundDisposalAppliedFilters: null,
   refundDisposalActiveRow: null,
-  refundDisposalRepaymentMode: "ratio",
+  refundDisposalRepaymentMode: "full",
   refundDisposalRepaymentCurrency: "USD",
   refundDisposalRepaymentValue: "100",
   refundDisposalUnbanPaid: "paid",
@@ -6587,7 +6587,7 @@ function ensureActiveRule(form) {
 
 function syncTopModuleTrigger() {
   if (!topRiskMenuTrigger) return;
-  const label = state.topModule === "refund" ? "退款管理" : "风控管理";
+  const label = state.topModule === "refund" ? "欠款管理" : "风控管理";
   const labelNode = topRiskMenuTrigger.querySelector("span");
   if (labelNode) {
     labelNode.textContent = label;
@@ -6617,7 +6617,7 @@ function initializeTopRiskMenu() {
   topRiskMenuTrigger.setAttribute("role", "button");
   topRiskMenuTrigger.setAttribute("aria-haspopup", "menu");
   topRiskMenuTrigger.setAttribute("aria-expanded", "false");
-  topRiskMenuTrigger.innerHTML = `<span>${state.topModule === "refund" ? "退款管理" : "风控管理"}</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i>`;
+  topRiskMenuTrigger.innerHTML = `<span>${state.topModule === "refund" ? "欠款管理" : "风控管理"}</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i>`;
   syncTopModuleTrigger();
 
   topRiskMenuTrigger.addEventListener("click", (event) => {
@@ -7843,7 +7843,7 @@ function renderRefundDisposalPage() {
 
 function openRefundDisposalOverlay(kind, rowIndex) {
   state.refundDisposalActiveRow = refundDisposalRows.find((row) => row.index === Number(rowIndex)) || refundDisposalRows[0];
-  state.refundDisposalRepaymentMode = "ratio";
+  state.refundDisposalRepaymentMode = "full";
   state.refundDisposalRepaymentCurrency = "USD";
   state.refundDisposalRepaymentValue = "100";
   state.refundDisposalUnbanPaid = "paid";
@@ -13889,8 +13889,8 @@ function renderRefundDisposalDrawerMarkup(row) {
           </section>
         </div>
         <footer class="refund-drawer-footer">
-          <button class="refund-drawer-unban" type="button" data-refund-drawer-unban>解封</button>
-          <button class="refund-drawer-cancel" type="button" data-refund-drawer-close>关闭</button>
+          ${row.status === "封禁中" ? `<button class="refund-drawer-unban" type="button" data-refund-drawer-unban>解封</button>` : ""}
+          <button class="refund-drawer-cancel" type="button" data-refund-drawer-close>确认</button>
         </footer>
       </aside>
     </div>
@@ -13932,7 +13932,7 @@ function renderRefundUnbanModal(preserveDrawer = false) {
                 <label><input type="radio" name="refund-unban-paid" value="unpaid" ${state.refundDisposalUnbanPaid === "unpaid" ? "checked" : ""} /> 未补款</label>
               </div>
             </div>
-            <div class="refund-unban-row">
+            <div class="refund-unban-row" data-refund-unban-amount-row ${state.refundDisposalUnbanPaid === "unpaid" ? "hidden" : ""}>
               <label for="refund-unban-amount">补款金额</label>
               <div class="refund-unban-amount">
                 <input id="refund-unban-amount" type="number" min="0" step="0.01" value="1000" />
@@ -13963,6 +13963,8 @@ function renderRefundUnbanModal(preserveDrawer = false) {
   activeOverlay?.querySelectorAll("[data-refund-unban-cancel]").forEach((button) => button.addEventListener("click", dismiss));
   activeOverlay?.querySelectorAll('input[name="refund-unban-paid"]').forEach((input) => input.addEventListener("change", () => {
     state.refundDisposalUnbanPaid = input.value;
+    const amountRow = activeOverlay.querySelector("[data-refund-unban-amount-row]");
+    if (amountRow) amountRow.hidden = input.value === "unpaid";
   }));
   activeOverlay?.querySelector("[data-refund-unban-confirm]")?.addEventListener("click", () => {
     const amount = Number.parseFloat(activeOverlay.querySelector("#refund-unban-amount")?.value || "0");
@@ -13981,12 +13983,8 @@ function renderRefundUnbanModal(preserveDrawer = false) {
 function renderRefundRepaymentModal() {
   const row = state.refundDisposalActiveRow || refundDisposalRows[0];
   const mode = state.refundDisposalRepaymentMode;
-  const requiredAmount = row.debt.replace("USD ", "");
+  const requiredAmount = String(row.debt).replace(/[^\d.]/g, "") || "0";
   const repaymentTotalAmount = 100;
-  const calculateRepaymentAmount = (ratioValue) => {
-    const ratio = Number.parseFloat(ratioValue);
-    return Number.isFinite(ratio) ? (repaymentTotalAmount * ratio / 100).toFixed(2) : "0.00";
-  };
   const repaymentCurrencies = ["USD", "CNY", "EUR", "JPY", "THB", "KRW", "HKD", "MYR", "SGD", "PHP", "VND"];
   drawerRoot.innerHTML = `
     <div class="refund-overlay refund-modal-overlay">
@@ -14000,18 +13998,10 @@ function renderRefundRepaymentModal() {
           <div class="refund-repayment-form">
             <div class="refund-form-row">
               <span>补款要求</span>
-              <label><input type="radio" name="refund-mode" value="ratio" ${mode === "ratio" ? "checked" : ""} /> 固定比例</label>
+              <label><input type="radio" name="refund-mode" value="full" ${mode === "full" ? "checked" : ""} /> 全额补款</label>
               <label><input type="radio" name="refund-mode" value="amount" ${mode === "amount" ? "checked" : ""} /> 自定义金额</label>
             </div>
-            ${mode === "ratio" ? `
-              <div class="refund-form-row refund-value-row">
-                <span>补款比例</span>
-                <div>
-                  <input type="number" min="1" max="100" value="${escapeHtml(state.refundDisposalRepaymentValue)}" data-refund-repayment-value /><b>%</b>
-                  <small data-refund-calculated-amount>该账号需补款${calculateRepaymentAmount(state.refundDisposalRepaymentValue)} USD</small>
-                </div>
-              </div>
-            ` : `
+            ${mode === "amount" ? `
               <div class="refund-form-row refund-value-row">
                 <span>补款金额</span>
                 <div class="refund-amount-control">
@@ -14024,7 +14014,7 @@ function renderRefundRepaymentModal() {
                   <input type="text" inputmode="decimal" autocomplete="off" aria-label="补款金额" value="${escapeHtml(state.refundDisposalRepaymentValue)}" data-refund-repayment-value />
                 </div>
               </div>
-            `}
+            ` : ""}
           </div>
         </div>
         <footer>
@@ -14041,7 +14031,7 @@ function renderRefundRepaymentModal() {
   drawerRoot.querySelectorAll("[data-refund-modal-close]").forEach((button) => button.addEventListener("click", closeModal));
   drawerRoot.querySelectorAll('input[name="refund-mode"]').forEach((input) => input.addEventListener("change", () => {
     state.refundDisposalRepaymentMode = input.value;
-    state.refundDisposalRepaymentValue = input.value === "ratio" ? "100" : requiredAmount;
+    state.refundDisposalRepaymentValue = input.value === "full" ? "100" : requiredAmount;
     renderRefundRepaymentModal();
   }));
   drawerRoot.querySelector("[data-refund-repayment-currency]")?.addEventListener("change", (event) => {
@@ -14049,10 +14039,6 @@ function renderRefundRepaymentModal() {
   });
   drawerRoot.querySelector("[data-refund-repayment-value]")?.addEventListener("input", (event) => {
     state.refundDisposalRepaymentValue = event.target.value;
-    const calculatedAmount = drawerRoot.querySelector("[data-refund-calculated-amount]");
-    if (calculatedAmount) {
-      calculatedAmount.textContent = `该账号需补款${calculateRepaymentAmount(event.target.value)} USD`;
-    }
   });
   drawerRoot.querySelector("[data-refund-modal-confirm]")?.addEventListener("click", () => {
     row.repaymentStatus = "已补款";
