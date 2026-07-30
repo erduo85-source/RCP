@@ -48,6 +48,12 @@ const navItems = [
     label: "欠款账号管理",
     icon: "fa-solid fa-hand-holding-dollar",
     page: "refund-disposal"
+  },
+  {
+    key: "refund-ban-policy",
+    label: "封禁策略配置",
+    icon: "fa-solid fa-sliders",
+    page: "refund-ban-policy"
   }
 ];
 
@@ -60,7 +66,7 @@ function getInitialNavigationState() {
     ? requestedPage
     : "refund-disposal";
   if (requestedPage !== currentPage) window.history.replaceState(null, "", `#${currentPage}`);
-  const topModule = currentPage === "refund-disposal" ? "refund" : "risk";
+  const topModule = ["refund-disposal", "refund-ban-policy"].includes(currentPage) ? "refund" : "risk";
   return { currentPage, topModule };
 }
 
@@ -462,7 +468,11 @@ const heroCopy = {
   },
   "refund-disposal": {
     title: "欠款账号管理",
-    desc: "查询风险命中与处置记录，支持按账号、设备、IP、策略等多条件筛选分析。"
+    desc: "查阅风控命中与处置记录，支持账号、设备、IP、策略等多条件筛选分析。"
+  },
+  "refund-ban-policy": {
+    title: "封禁策略配置",
+    desc: "支持按退款金额和退款订单数，配置自动封禁和自主补款"
   }
 };
 
@@ -598,11 +608,17 @@ const defaultRefundBanPolicy = Object.freeze({
   enabled: true,
   mode: "either-or",
   relation: "or",
-  orderCount: "3",
-  amount: "50",
+  orderCount: "2",
+  amount: "100",
+  conditions: [
+    { id: "refund-condition-usd", metric: "amount", threshold: "100", unit: "USD", enabled: true },
+    { id: "refund-condition-count", metric: "count", threshold: "2", unit: "笔", enabled: true }
+  ],
+  disposalAction: "ban",
   repaymentMethods: ["web"],
   repaymentUrl: "https://payment.playbest.net/zh-Hans/pay/51",
-  repaymentRatio: "100"
+  repaymentRatio: "100",
+  repaymentRatioMode: "full"
 });
 
 const drawerRoot = document.querySelector("#drawer-root");
@@ -774,19 +790,21 @@ const state = {
   behaviorFilters: null,
   behaviorFilterDraft: null,
   refundDisposalFilters: {
-    accountType: "SDKID",
+    accountType: "账号名",
     account: "",
-    accountStatus: "全部",
-    repaymentStatus: "全部",
-    time: "2026-04-13 12:00:00 ~ 2026-04-13 12:00:00"
+    refundChannel: "",
+    accountStatus: "",
+    repaymentStatus: ""
   },
   refundDisposalAppliedFilters: null,
   refundDisposalActiveRow: null,
   refundDisposalRepaymentMode: "ratio",
   refundDisposalRepaymentCurrency: "USD",
   refundDisposalRepaymentValue: "100",
+  refundDisposalUnbanPaid: "paid",
   refundBanPolicy: {
     ...defaultRefundBanPolicy,
+    conditions: defaultRefundBanPolicy.conditions.map((condition) => ({ ...condition })),
     repaymentMethods: [...defaultRefundBanPolicy.repaymentMethods]
   },
   refundBanPolicySaved: JSON.stringify(defaultRefundBanPolicy),
@@ -6636,6 +6654,8 @@ function initializeTopRiskMenu() {
 }
 
 function renderApp() {
+  document.body.classList.toggle("refund-ban-policy-route", state.currentPage === "refund-ban-policy");
+  document.body.classList.toggle("refund-disposal-route", state.currentPage === "refund-disposal");
   syncTopModuleTrigger();
   if (state.currentPage === "user-risk-engine-b" || state.currentPage === "user-risk-engine-c" || state.currentPage === "risk-engine") {
     state.currentPage = "user-risk-engine";
@@ -6650,7 +6670,7 @@ function renderApp() {
 }
 
 function renderSideNav() {
-  const refundNavKeys = new Set(["refund-disposal"]);
+  const refundNavKeys = new Set(["refund-disposal", "refund-ban-policy"]);
   const visibleNavItems = state.topModule === "refund" ? navItems.filter((item) => refundNavKeys.has(item.key)) : navItems.filter((item) => !refundNavKeys.has(item.key));
   sideNav.innerHTML = visibleNavItems
     .map((item) => {
@@ -6695,6 +6715,7 @@ function renderSideNav() {
         return;
       }
 
+      if (nextPage === "refund-ban-policy") prepareRefundBanPolicySession();
       state.currentPage = nextPage === "user-risk-engine-b" || nextPage === "user-risk-engine-c"
         ? "user-risk-engine"
         : nextPage === "payment-risk-engine-b"
@@ -6747,7 +6768,8 @@ function renderHero() {
     state.currentPage === "payment-risk-engine-b";
   heroCard.classList.toggle("hero-card-compact", isOverviewPage);
   heroCard.classList.toggle("hero-card-hidden", isOverviewPage || isLogPage || isStandaloneWorkbenchEditor);
-  heroCard.classList.toggle("hero-card-with-action", state.currentPage === "refund-disposal");
+  heroCard.classList.remove("hero-card-with-action");
+  heroCard.classList.toggle("hero-card-refund-ban-policy", state.currentPage === "refund-ban-policy");
   pageContent.classList.toggle("overview-page-content", isOverviewPage);
   if (isOverviewPage || isLogPage || isStandaloneWorkbenchEditor) {
     heroCard.innerHTML = "";
@@ -6758,14 +6780,7 @@ function renderHero() {
       <h1>${copy.title}</h1>
       <p>${copy.desc}</p>
     </div>
-    ${state.currentPage === "refund-disposal" ? `
-      <button class="refund-ban-config-entry" type="button" data-refund-ban-open>
-        <i class="fa-solid fa-plus" aria-hidden="true"></i>
-        封禁策略配置
-      </button>
-    ` : ""}
   `;
-  heroCard.querySelector("[data-refund-ban-open]")?.addEventListener("click", openRefundBanPolicyDrawer);
 }
 
 function renderPage() {
@@ -6829,6 +6844,10 @@ function renderPage() {
     renderRefundDisposalPage();
     return;
   }
+  if (state.currentPage === "refund-ban-policy") {
+    renderRefundBanPolicyPage();
+    return;
+  }
   pageContent.innerHTML = `<section class="placeholder-panel">当前页面按设计稿保留导航入口，内容可继续补充。</section>`;
 }
 
@@ -6842,20 +6861,42 @@ function refundBanPolicyUsesAmount(mode) {
 
 function validateRefundBanPolicy(policy = state.refundBanPolicy) {
   const errors = {};
-  if (refundBanPolicyUsesCount(policy.mode)) {
-    const value = Number(policy.orderCount);
-    if (!Number.isInteger(value) || value < 1) errors.orderCount = "请输入大于等于 1 的整数";
+  const conditions = Array.isArray(policy.conditions) ? policy.conditions.filter((condition) => condition.enabled !== false) : [];
+  if (!conditions.length) errors.conditions = "请至少配置一个判断条件";
+  conditions.forEach((condition, index) => {
+    const value = Number(condition.threshold);
+    if (!Number.isFinite(value) || value <= 0) errors[`condition-${index}`] = `第 ${index + 1} 个触发阈值需大于 0`;
+  });
+  if (policy.disposalAction !== "none" && !policy.repaymentMethods.length) {
+    errors.repaymentMethods = "请选择补款方式";
   }
-  if (refundBanPolicyUsesAmount(policy.mode)) {
-    const value = Number(policy.amount);
-    if (!Number.isFinite(value) || value <= 0) errors.amount = "请输入大于 0 的金额";
-  }
-  if (!policy.repaymentMethods.length) errors.repaymentMethods = "请至少选择一种补款方式";
   return errors;
 }
 
 function syncRefundBanPolicySaved() {
   state.refundBanPolicySaved = JSON.stringify(state.refundBanPolicy);
+}
+
+function getRefundBanConditions(policy = state.refundBanPolicy) {
+  if (!Array.isArray(policy.conditions) || !policy.conditions.length) {
+    policy.conditions = defaultRefundBanPolicy.conditions.map((condition) => ({ ...condition }));
+  }
+  return policy.conditions;
+}
+
+function syncRefundBanConditionLegacyFields(policy = state.refundBanPolicy) {
+  const conditions = getRefundBanConditions(policy).filter((condition) => condition.enabled !== false);
+  const countCondition = conditions.find((condition) => condition.metric === "count");
+  const amountCondition = conditions.find((condition) => condition.metric === "amount");
+  if (countCondition) policy.orderCount = String(countCondition.threshold || "");
+  if (amountCondition) policy.amount = String(amountCondition.threshold || "");
+  if (countCondition && amountCondition) {
+    policy.mode = policy.relation === "and" ? "both-and" : "either-or";
+  } else if (countCondition) {
+    policy.mode = "count";
+  } else {
+    policy.mode = "amount";
+  }
 }
 
 function createRefundBanRuleSpecsSnapshot() {
@@ -6864,6 +6905,33 @@ function createRefundBanRuleSpecsSnapshot() {
     if (spec) snapshot[kind] = cloneBehaviorRuleSpec(spec);
     return snapshot;
   }, {});
+}
+
+function prepareRefundBanPolicySession() {
+  if (!state.refundBanPolicySnapshot) {
+    state.refundBanPolicySnapshot = deepClone(state.refundBanPolicy);
+    state.refundBanRuleSpecsSnapshot = createRefundBanRuleSpecsSnapshot();
+  }
+  state.refundBanPolicyErrors = {};
+}
+
+function openRefundBanPolicyPage() {
+  prepareRefundBanPolicySession();
+  state.topModule = "refund";
+  state.currentPage = "refund-ban-policy";
+  window.history.replaceState(null, "", "#refund-ban-policy");
+  renderApp();
+}
+
+function cancelRefundBanPolicyPage() {
+  restoreRefundBanPolicySnapshot();
+  state.refundBanSaveConfirmOpen = false;
+  state.refundBanPolicySnapshot = null;
+  state.refundBanRuleSpecsSnapshot = null;
+  state.currentPage = "refund-disposal";
+  state.topModule = "refund";
+  window.history.replaceState(null, "", "#refund-disposal");
+  renderApp();
 }
 
 function restoreRefundBanPolicySnapshot() {
@@ -6885,11 +6953,24 @@ function cancelRefundBanPolicyDrawer() {
 
 function openRefundBanSaveConfirm() {
   state.refundBanSaveConfirmOpen = true;
+  if (state.currentPage === "refund-ban-policy") {
+    state.modalOpen = true;
+    state.modalKind = "refund-ban-save-confirm";
+    renderOverlay();
+    return;
+  }
   renderRefundBanPolicyDrawer();
 }
 
 function closeRefundBanSaveConfirm() {
   state.refundBanSaveConfirmOpen = false;
+  if (state.currentPage === "refund-ban-policy") {
+    state.modalOpen = false;
+    state.modalKind = "";
+    drawerRoot.innerHTML = "";
+    document.body.style.overflow = "";
+    return;
+  }
   renderRefundBanPolicyDrawer();
 }
 
@@ -6898,6 +6979,16 @@ function confirmRefundBanPolicySave() {
   state.refundBanSaveConfirmOpen = false;
   state.refundBanPolicySnapshot = null;
   state.refundBanRuleSpecsSnapshot = null;
+  if (state.currentPage === "refund-ban-policy") {
+    state.modalOpen = false;
+    state.modalKind = "";
+    drawerRoot.innerHTML = "";
+    document.body.style.overflow = "";
+    prepareRefundBanPolicySession();
+    renderRefundBanPolicyPage();
+    showToast("封禁策略配置已保存");
+    return;
+  }
   closeModal();
   showToast("封禁策略配置已保存");
 }
@@ -6935,6 +7026,12 @@ function openRefundBanRuleModal(kind) {
   state.refundBanEditingRule = kind;
   state.behaviorRuleModalMode = "config";
   state.behaviorRuleDraft = cloneBehaviorRuleSpec(spec);
+  if (state.currentPage === "refund-ban-policy") {
+    state.modalOpen = true;
+    state.modalKind = "refund-ban-rule";
+    renderOverlay();
+    return;
+  }
   renderRefundBanPolicyDrawer();
 }
 
@@ -6942,6 +7039,13 @@ function closeRefundBanRuleModal() {
   state.refundBanEditingRule = "";
   state.behaviorRuleModalMode = "view";
   state.behaviorRuleDraft = null;
+  if (state.currentPage === "refund-ban-policy") {
+    state.modalOpen = false;
+    state.modalKind = "";
+    drawerRoot.innerHTML = "";
+    document.body.style.overflow = "";
+    return;
+  }
   renderRefundBanPolicyDrawer();
 }
 
@@ -6953,59 +7057,78 @@ function saveRefundBanRuleModal() {
   const threshold = getRefundBanRuleThreshold(kind, draft);
   if (threshold) {
     state.refundBanPolicy[kind === "count" ? "orderCount" : "amount"] = threshold;
+    const condition = getRefundBanConditions().find((item) => item.metric === kind);
+    if (condition) condition.threshold = String(threshold);
   }
   state.refundBanEditingRule = "";
   state.behaviorRuleModalMode = "view";
   state.behaviorRuleDraft = null;
+  if (state.currentPage === "refund-ban-policy") {
+    state.modalOpen = false;
+    state.modalKind = "";
+    drawerRoot.innerHTML = "";
+    document.body.style.overflow = "";
+    renderRefundBanPolicyPage();
+    showToast("风险规则已更新");
+    return;
+  }
   renderRefundBanPolicyDrawer();
   showToast("风险规则已更新");
 }
 
-function renderRefundBanDrawerRule(kind, policy) {
-  const isCount = kind === "count";
-  const enabled = isCount ? refundBanPolicyUsesCount(policy.mode) : refundBanPolicyUsesAmount(policy.mode);
-  const field = isCount ? "orderCount" : "amount";
-  const value = policy[field];
-  const title = getRefundBanRuleName(kind);
-  const description = isCount
-    ? `同一账号，退款订单总数达到 ${value || "—"} 笔`
-    : `同一账号，退款累计金额达到 ${value || "—"} USD`;
+function renderRefundBanConditionRow(condition, index) {
+  const metric = condition.metric === "count" ? "count" : "amount";
+  const unitOptions = metric === "count"
+    ? `<option value="笔" selected>笔</option>`
+    : ["USD", "RMB"].map((unit) => `<option value="${unit}" ${condition.unit === unit ? "selected" : ""}>${unit}</option>`).join("");
   return `
-    <div class="refund-ban-drawer-rule ${enabled ? "is-enabled" : ""}">
-      <label class="refund-ban-drawer-checkbox">
-        <input type="checkbox" value="${kind}" ${enabled ? "checked" : ""} data-refund-ban-drawer-condition />
-        <span aria-hidden="true"><i class="fa-solid fa-check"></i></span>
-        <span class="sr-only">${enabled ? "停用" : "启用"}${title}</span>
+    <div class="refund-ban-condition-row" data-refund-ban-condition-row="${index}">
+      <span class="refund-ban-condition-index">${index + 1}</span>
+      <label class="refund-ban-condition-select">
+        <span class="sr-only">第 ${index + 1} 条统计指标</span>
+        <select data-refund-ban-condition-metric="${index}">
+          <option value="count" ${metric === "count" ? "selected" : ""}>账号累计退款订单数</option>
+          <option value="amount" ${metric === "amount" ? "selected" : ""}>账号累计退款订单金额</option>
+        </select>
       </label>
-      <strong class="refund-ban-drawer-rule-name">${title}</strong>
-      <small class="refund-ban-drawer-rule-desc">${description}</small>
-      <button class="refund-ban-drawer-edit" type="button" data-refund-ban-edit-rule="${kind}">
-        <i class="fa-regular fa-pen-to-square" aria-hidden="true"></i>编辑规则
-      </button>
+      <label class="refund-ban-threshold">
+        <span class="sr-only">第 ${index + 1} 条触发阈值</span>
+        <span aria-hidden="true">≥</span>
+        <input type="number" min="1" step="1" value="${escapeHtml(condition.threshold || "")}" data-refund-ban-condition-threshold="${index}" />
+      </label>
+      <label class="refund-ban-condition-select refund-ban-condition-unit ${metric === "count" ? "is-fixed" : ""}">
+        <span class="sr-only">第 ${index + 1} 条单位</span>
+        <select data-refund-ban-condition-unit="${index}" ${metric === "count" ? "disabled" : ""}>
+          ${unitOptions}
+        </select>
+      </label>
+      <div class="refund-ban-condition-actions">
+        ${index > 0 ? `<button type="button" data-refund-ban-condition-copy="${index}">复制</button>` : ""}
+        <button type="button" data-refund-ban-condition-delete="${index}">删除</button>
+      </div>
     </div>
   `;
 }
 
 function renderRefundBanPolicyDrawer() {
   const policy = state.refundBanPolicy;
-  const usesCount = refundBanPolicyUsesCount(policy.mode);
-  const usesAmount = refundBanPolicyUsesAmount(policy.mode);
+  const conditions = getRefundBanConditions(policy);
   const relation = policy.relation || (policy.mode === "either-or" ? "or" : "and");
   const repaymentMethod = policy.repaymentMethods.includes("web") ? "web" : "manual";
+  const disposalAction = policy.disposalAction || "ban";
 
   drawerRoot.innerHTML = `
     <div class="drawer-overlay refund-ban-drawer-overlay">
       <aside class="refund-ban-drawer" role="dialog" aria-modal="true" aria-labelledby="refund-ban-drawer-title">
         <button class="refund-ban-drawer-close" type="button" aria-label="关闭封禁策略配置">
-          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          <img src="./assets/refund-ban/close.svg" alt="" aria-hidden="true" />
         </button>
         <header class="refund-ban-drawer-head">
           <h2 id="refund-ban-drawer-title">封禁策略配置</h2>
         </header>
         <div class="refund-ban-drawer-body">
-          <section class="refund-ban-drawer-section">
-            <h3>策略开关</h3>
-            <div class="refund-ban-drawer-form-row">
+          <section class="refund-ban-page-header">
+            <div class="refund-ban-status">
               <span>策略状态：</span>
               <button
                 class="refund-ban-drawer-switch ${policy.enabled ? "on" : ""}"
@@ -7016,72 +7139,99 @@ function renderRefundBanPolicyDrawer() {
               ><i aria-hidden="true"></i></button>
               <b class="refund-ban-drawer-state ${policy.enabled ? "on" : ""}">${policy.enabled ? "启用" : "停用"}</b>
             </div>
+            <div class="refund-ban-header-actions">
+              <button class="refund-ban-cancel-button" type="button" data-refund-ban-drawer-cancel>取消</button>
+              <button class="refund-ban-publish-button" type="button" data-refund-ban-drawer-save>发布策略</button>
+            </div>
           </section>
 
-          <section class="refund-ban-drawer-section">
-            <h3>封禁规则</h3>
-            <div class="refund-ban-drawer-form-row refund-ban-drawer-relation-row">
-              <span>判断条件</span>
-              <div class="refund-ban-drawer-radio-group" role="radiogroup" aria-label="判断条件">
+          <section class="refund-ban-card refund-ban-trigger-card" style="--refund-condition-extra:${Math.max(0, conditions.length - 3)}">
+            <header class="refund-ban-section-header">
+              <span class="refund-ban-section-badge">1</span>
+              <span>
+                <h3>配置触发条件</h3>
+                <p>选择需要检测的风险行为，勾选检测项将使用于线上风险评估</p>
+              </span>
+            </header>
+            <div class="refund-ban-trigger-content">
+              <div class="refund-ban-form-line refund-ban-relation-line">
+                <span>触发要求：</span>
+                <div class="refund-ban-drawer-radio-group refund-ban-trigger-radios" role="radiogroup" aria-label="触发要求">
                 <label>
                   <input type="radio" name="refund-ban-relation" value="and" ${relation === "and" ? "checked" : ""} data-refund-ban-drawer-relation />
-                  <span aria-hidden="true"></span><b>满足全部</b>
+                    <span class="refund-ban-radio-visual" aria-hidden="true"></span><b>满足以下全部条件</b>
                 </label>
                 <label>
                   <input type="radio" name="refund-ban-relation" value="or" ${relation === "or" ? "checked" : ""} data-refund-ban-drawer-relation />
-                  <span aria-hidden="true"></span><b>满足任一</b>
+                    <span class="refund-ban-radio-visual" aria-hidden="true"></span><b>满足以下任一条件</b>
                 </label>
               </div>
             </div>
-            <div class="refund-ban-drawer-rule-table">
-              <div class="refund-ban-drawer-rule-head">
-                <span></span><b>判断条件</b><b>描述</b><b>操作</b>
+              <div class="refund-ban-condition-table">
+                <div class="refund-ban-condition-head">
+                  <span></span>
+                  <b>统计指标</b>
+                  <b><i>*</i>触发阈值</b>
+                  <b><i>*</i>单位</b>
+                  <b>操作</b>
               </div>
-              ${renderRefundBanDrawerRule("amount", policy)}
-              ${renderRefundBanDrawerRule("count", policy)}
+                ${conditions.map(renderRefundBanConditionRow).join("")}
+                <button class="refund-ban-add-condition" type="button" data-refund-ban-condition-add>
+                  <img src="./assets/refund-ban/add.svg" alt="" aria-hidden="true" />
+                  <span>添加判断条件</span>
+                </button>
+              </div>
             </div>
           </section>
 
-          <section class="refund-ban-drawer-section refund-ban-drawer-repayment">
-            <h3>补款配置</h3>
-            <div class="refund-ban-drawer-form-row">
+          <section class="refund-ban-card refund-ban-action-card">
+            <header class="refund-ban-section-header">
+              <span class="refund-ban-section-badge">2</span>
+              <span>
+                <h3>匹配处置动作</h3>
+                <p>满足封禁触发条件后，配置处置动作</p>
+              </span>
+            </header>
+            <div class="refund-ban-action-content">
+              <div class="refund-ban-form-line refund-ban-disposal-line">
+                <span>处置动作：</span>
+                <div class="refund-ban-disposal-options" role="group" aria-label="处置动作">
+                  <button class="${disposalAction === "none" ? "selected" : ""}" type="button" aria-pressed="${disposalAction === "none"}" data-refund-ban-disposal-action="none">
+                    <span><img src="./assets/refund-ban/action-none.svg" alt="" aria-hidden="true" /></span>暂不处理
+                  </button>
+                  <button class="${disposalAction === "ban" ? "selected" : ""}" type="button" aria-pressed="${disposalAction === "ban"}" data-refund-ban-disposal-action="ban">
+                    <span><img src="./assets/refund-ban/action-ban.svg" alt="" aria-hidden="true" /></span>账号封禁并提示补款
+                  </button>
+                </div>
+              </div>
+              ${disposalAction === "ban" ? `
+              <div class="refund-ban-form-line">
               <span>补款方式：</span>
               <div class="refund-ban-drawer-radio-group" role="radiogroup" aria-label="补款方式">
                 <label>
                   <input type="radio" name="refund-ban-repayment" value="manual" ${repaymentMethod === "manual" ? "checked" : ""} data-refund-ban-drawer-method />
-                  <span aria-hidden="true"></span><b>联系客服补款</b>
+                    <span class="refund-ban-radio-visual" aria-hidden="true"></span><b>联系客服补款</b>
                 </label>
                 <label>
                   <input type="radio" name="refund-ban-repayment" value="web" ${repaymentMethod === "web" ? "checked" : ""} data-refund-ban-drawer-method />
-                  <span aria-hidden="true"></span><b>网页自助补款</b>
+                    <span class="refund-ban-radio-visual" aria-hidden="true"></span><b>网页自助补款</b>
                   <span class="refund-ban-drawer-tooltip" tabindex="0" aria-describedby="refund-ban-repayment-tip">
-                    <i class="fa-regular fa-circle-question" aria-hidden="true"></i>
+                      <img src="./assets/refund-ban/info-circle.svg" alt="" aria-hidden="true" />
                     <span class="refund-ban-drawer-tooltip-bubble" id="refund-ban-repayment-tip" role="tooltip">请前往充值中心后台配置并生成补款页面链接</span>
                   </span>
                 </label>
               </div>
-            </div>
-            ${repaymentMethod === "web" ? `
+              </div>
+              ${repaymentMethod === "web" ? `
               <label class="refund-ban-drawer-input-row">
                 <span>补款链接：</span>
                 <input type="url" value="${escapeHtml(policy.repaymentUrl || "")}" data-refund-ban-drawer-url />
               </label>
-              <label class="refund-ban-drawer-input-row compact">
-                <span>默认补款比例：</span>
-                <span class="refund-ban-drawer-number">
-                  <input type="number" min="1" max="100" step="1" value="${escapeHtml(policy.repaymentRatio || "100")}" data-refund-ban-drawer-ratio />
-                  <b>%</b>
-                </span>
-              </label>
-            ` : `
-              <p class="refund-ban-drawer-helper"><i class="fa-solid fa-circle-info" aria-hidden="true"></i>封禁账号需联系客服核实退款与补款信息。</p>
-            `}
+              ` : ""}
+              ` : `<p class="refund-ban-no-action-copy">命中条件后仅记录风险，不执行账号封禁或补款提示。</p>`}
+            </div>
           </section>
         </div>
-        <footer class="refund-ban-drawer-footer">
-          <button class="primary-btn refund-ban-drawer-action" type="button" data-refund-ban-drawer-save>保存</button>
-          <button class="secondary-btn refund-ban-drawer-action" type="button" data-refund-ban-drawer-cancel>取消</button>
-        </footer>
       </aside>
     </div>
     ${state.refundBanEditingRule ? renderRefundBanRuleModalMarkup() : ""}
@@ -7110,36 +7260,80 @@ function bindRefundBanPolicyDrawerActions() {
   drawerRoot.querySelectorAll("[data-refund-ban-drawer-relation]").forEach((input) => {
     input.addEventListener("change", () => {
       state.refundBanPolicy.relation = input.value;
-      const usesCount = refundBanPolicyUsesCount(state.refundBanPolicy.mode);
-      const usesAmount = refundBanPolicyUsesAmount(state.refundBanPolicy.mode);
-      if (usesCount && usesAmount) state.refundBanPolicy.mode = input.value === "or" ? "either-or" : "both-and";
+      syncRefundBanConditionLegacyFields();
       renderRefundBanPolicyDrawer();
     });
   });
 
-  drawerRoot.querySelectorAll("[data-refund-ban-drawer-condition]").forEach((checkbox) => {
-    checkbox.addEventListener("change", () => {
-      const kind = checkbox.value;
-      const usesCount = refundBanPolicyUsesCount(state.refundBanPolicy.mode);
-      const usesAmount = refundBanPolicyUsesAmount(state.refundBanPolicy.mode);
-      if (!checkbox.checked) {
-        const isLastCondition = (kind === "count" && !usesAmount) || (kind === "amount" && !usesCount);
-        if (isLastCondition) {
-          showToast("至少保留一个封禁条件");
-          renderRefundBanPolicyDrawer();
-          return;
-        }
-        state.refundBanPolicy.mode = kind === "count" ? "amount" : "count";
-      } else {
-        state.refundBanPolicy.mode = state.refundBanPolicy.relation === "or" ? "either-or" : "both-and";
-      }
+  drawerRoot.querySelectorAll("[data-refund-ban-condition-metric]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const condition = getRefundBanConditions()[Number(select.dataset.refundBanConditionMetric)];
+      if (!condition) return;
+      condition.metric = select.value;
+      condition.unit = condition.metric === "count" ? "笔" : (condition.unit === "笔" ? "USD" : condition.unit);
+      syncRefundBanConditionLegacyFields();
       renderRefundBanPolicyDrawer();
     });
   });
 
-  drawerRoot.querySelectorAll("[data-refund-ban-edit-rule]").forEach((button) => {
+  drawerRoot.querySelectorAll("[data-refund-ban-condition-threshold]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const condition = getRefundBanConditions()[Number(input.dataset.refundBanConditionThreshold)];
+      if (!condition) return;
+      condition.threshold = input.value;
+      syncRefundBanConditionLegacyFields();
+    });
+  });
+
+  drawerRoot.querySelectorAll("[data-refund-ban-condition-unit]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const condition = getRefundBanConditions()[Number(select.dataset.refundBanConditionUnit)];
+      if (!condition) return;
+      condition.unit = select.value;
+      renderRefundBanPolicyDrawer();
+    });
+  });
+
+  drawerRoot.querySelectorAll("[data-refund-ban-condition-copy]").forEach((button) => {
     button.addEventListener("click", () => {
-      openRefundBanRuleModal(button.dataset.refundBanEditRule);
+      const conditions = getRefundBanConditions();
+      const index = Number(button.dataset.refundBanConditionCopy);
+      const source = conditions[index];
+      if (!source) return;
+      conditions.splice(index + 1, 0, { ...source, id: `refund-condition-${uid()}` });
+      syncRefundBanConditionLegacyFields();
+      renderRefundBanPolicyDrawer();
+    });
+  });
+
+  drawerRoot.querySelectorAll("[data-refund-ban-condition-delete]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const conditions = getRefundBanConditions();
+      if (conditions.length <= 1) {
+        showToast("至少保留一个判断条件");
+        return;
+      }
+      conditions.splice(Number(button.dataset.refundBanConditionDelete), 1);
+      syncRefundBanConditionLegacyFields();
+      renderRefundBanPolicyDrawer();
+    });
+  });
+
+  drawerRoot.querySelector("[data-refund-ban-condition-add]")?.addEventListener("click", () => {
+    getRefundBanConditions().push({
+      id: `refund-condition-${uid()}`,
+      metric: "amount",
+      threshold: "100",
+      unit: "USD"
+    });
+    syncRefundBanConditionLegacyFields();
+    renderRefundBanPolicyDrawer();
+  });
+
+  drawerRoot.querySelectorAll("[data-refund-ban-disposal-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.refundBanPolicy.disposalAction = button.dataset.refundBanDisposalAction;
+      renderRefundBanPolicyDrawer();
     });
   });
 
@@ -7153,8 +7347,225 @@ function bindRefundBanPolicyDrawerActions() {
   drawerRoot.querySelector("[data-refund-ban-drawer-url]")?.addEventListener("input", (event) => {
     state.refundBanPolicy.repaymentUrl = event.target.value;
   });
-  drawerRoot.querySelector("[data-refund-ban-drawer-ratio]")?.addEventListener("input", (event) => {
-    state.refundBanPolicy.repaymentRatio = event.target.value;
+}
+
+function getRefundBanPolicyRuleRows() {
+  const conditions = getRefundBanConditions();
+  const amount = conditions.find((condition) => condition.metric === "amount") || {
+    id: "refund-condition-usd",
+    metric: "amount",
+    threshold: "100",
+    unit: "USD",
+    enabled: true
+  };
+  const count = conditions.find((condition) => condition.metric === "count") || {
+    id: "refund-condition-count",
+    metric: "count",
+    threshold: "2",
+    unit: "笔",
+    enabled: true
+  };
+  if (!conditions.includes(amount)) conditions.unshift(amount);
+  if (!conditions.includes(count)) conditions.push(count);
+  return [
+    {
+      kind: "amount",
+      condition: amount,
+      title: "账号累计退款订单金额",
+      description: `统计周期内，账号累计欠款（退款或信用卡拒付等）总金额 ≥ ${escapeHtml(amount.threshold || "")} ${escapeHtml(amount.unit || "USD")}`
+    },
+    {
+      kind: "count",
+      condition: count,
+      title: "账号累计退款订单数量",
+      description: `统计周期内，账号累计欠款（退款或信用卡拒付等）订单数 ≥ ${escapeHtml(count.threshold || "")} 笔`
+    }
+  ];
+}
+
+function renderRefundBanPolicyRuleRow(row) {
+  const enabled = row.condition.enabled !== false;
+  return `
+    <div class="refund-ban-policy-rule ${enabled ? "is-enabled" : ""}">
+      <label class="refund-ban-policy-checkbox">
+        <input type="checkbox" ${enabled ? "checked" : ""} data-refund-ban-policy-condition="${row.kind}" />
+        <span aria-hidden="true">${enabled ? `<img src="./assets/refund-ban/checkbox-checked.svg" alt="" />` : ""}</span>
+        <span class="sr-only">${enabled ? "停用" : "启用"}${row.title}</span>
+      </label>
+      <strong>${row.title}</strong>
+      <span>${row.description}</span>
+      <button class="refund-ban-policy-edit" type="button" data-refund-ban-rule-edit="${row.kind}">
+        <img src="./assets/refund-ban/edit.svg" alt="" aria-hidden="true" />
+        <span>编辑规则</span>
+      </button>
+    </div>
+  `;
+}
+
+function renderRefundBanPolicyPage() {
+  prepareRefundBanPolicySession();
+  const policy = state.refundBanPolicy;
+  const relation = policy.relation || (policy.mode === "either-or" ? "or" : "and");
+  const repaymentMethod = policy.repaymentMethods.includes("web") ? "web" : "manual";
+  const disposalAction = policy.disposalAction || "ban";
+  const rules = getRefundBanPolicyRuleRows();
+
+  pageContent.innerHTML = `
+    <section class="refund-ban-policy-page">
+      <section class="refund-ban-page-header" aria-label="策略操作">
+        <div class="refund-ban-status">
+          <span>策略状态：</span>
+          <button
+            class="refund-ban-drawer-switch ${policy.enabled ? "on" : ""}"
+            type="button"
+            role="switch"
+            aria-checked="${policy.enabled}"
+            data-refund-ban-page-enabled
+          ><i aria-hidden="true"></i></button>
+          <b class="refund-ban-drawer-state ${policy.enabled ? "on" : ""}">${policy.enabled ? "启用" : "停用"}</b>
+        </div>
+        <div class="refund-ban-header-actions">
+          <button class="refund-ban-cancel-button" type="button" data-refund-ban-page-cancel>取消</button>
+          <button class="refund-ban-publish-button" type="button" data-refund-ban-page-save>发布策略</button>
+        </div>
+      </section>
+
+      <section class="refund-ban-card refund-ban-policy-trigger-card">
+        <header class="refund-ban-section-header">
+          <span class="refund-ban-section-badge">1</span>
+          <span>
+            <h3>配置触发条件</h3>
+            <p>选择需要检测的风险行为，勾选检测项将使用于线上风险评估</p>
+          </span>
+        </header>
+        <div class="refund-ban-policy-relation">
+          <span>触发要求：</span>
+          <div class="refund-ban-drawer-radio-group refund-ban-trigger-radios" role="radiogroup" aria-label="触发要求">
+            <label>
+              <input type="radio" name="refund-ban-page-relation" value="and" ${relation === "and" ? "checked" : ""} data-refund-ban-page-relation />
+              <span aria-hidden="true"></span><b>满足以下全部条件</b>
+            </label>
+            <label>
+              <input type="radio" name="refund-ban-page-relation" value="or" ${relation === "or" ? "checked" : ""} data-refund-ban-page-relation />
+              <span aria-hidden="true"></span><b>满足以下任一条件</b>
+            </label>
+          </div>
+        </div>
+        <div class="refund-ban-policy-rule-table">
+          <div class="refund-ban-policy-rule-head">
+            <span></span>
+            <b>统计指标</b>
+            <b>判断规则</b>
+            <b>操作</b>
+          </div>
+          ${rules.map(renderRefundBanPolicyRuleRow).join("")}
+        </div>
+      </section>
+
+      <section class="refund-ban-card refund-ban-policy-action-card">
+        <header class="refund-ban-section-header">
+          <span class="refund-ban-section-badge">2</span>
+          <span>
+            <h3>匹配处置动作</h3>
+            <p>满足封禁触发条件后，配置处置动作</p>
+          </span>
+        </header>
+        <div class="refund-ban-action-content">
+          <div class="refund-ban-form-line refund-ban-disposal-line">
+            <span>处置动作：</span>
+            <div class="refund-ban-disposal-options" role="group" aria-label="处置动作">
+              <button class="${disposalAction === "none" ? "selected" : ""}" type="button" aria-pressed="${disposalAction === "none"}" data-refund-ban-page-action="none">
+                <span><img src="./assets/refund-ban/action-none.svg" alt="" aria-hidden="true" /></span>暂不处理
+              </button>
+              <button class="${disposalAction === "ban" ? "selected" : ""}" type="button" aria-pressed="${disposalAction === "ban"}" data-refund-ban-page-action="ban">
+                <span><img src="./assets/refund-ban/action-ban.svg" alt="" aria-hidden="true" /></span>账号封禁并提示补款
+              </button>
+            </div>
+          </div>
+          ${disposalAction === "ban" ? `
+            <div class="refund-ban-form-line">
+              <span>补款方式：</span>
+              <div class="refund-ban-drawer-radio-group" role="radiogroup" aria-label="补款方式">
+                <label>
+                  <input type="radio" name="refund-ban-page-repayment" value="manual" ${repaymentMethod === "manual" ? "checked" : ""} data-refund-ban-page-method />
+                  <span aria-hidden="true"></span><b>联系客服补款</b>
+                </label>
+                <span class="refund-ban-web-method">
+                  <label>
+                    <input type="radio" name="refund-ban-page-repayment" value="web" ${repaymentMethod === "web" ? "checked" : ""} data-refund-ban-page-method />
+                    <span aria-hidden="true"></span><b>网页自助补款</b>
+                  </label>
+                  <span class="refund-ban-drawer-tooltip" tabindex="0" aria-describedby="refund-ban-page-repayment-tip">
+                    <img src="./assets/refund-ban/info-circle.svg" alt="" aria-hidden="true" />
+                    <span class="refund-ban-drawer-tooltip-bubble" id="refund-ban-page-repayment-tip" role="tooltip">请前往充值中心后台配置并生成补款页面链接</span>
+                  </span>
+                </span>
+              </div>
+            </div>
+            ${repaymentMethod === "web" ? `
+              <label class="refund-ban-drawer-input-row">
+                <span>补款链接：</span>
+                <input type="url" value="${escapeHtml(policy.repaymentUrl || "")}" data-refund-ban-page-url />
+              </label>
+            ` : ""}
+          ` : `<p class="refund-ban-no-action-copy">命中条件后仅记录风险，不执行账号封禁或补款提示。</p>`}
+        </div>
+      </section>
+    </section>
+  `;
+
+  bindRefundBanPolicyPageActions();
+}
+
+function bindRefundBanPolicyPageActions() {
+  pageContent.querySelector("[data-refund-ban-page-enabled]")?.addEventListener("click", () => {
+    state.refundBanPolicy.enabled = !state.refundBanPolicy.enabled;
+    renderRefundBanPolicyPage();
+  });
+  pageContent.querySelectorAll("[data-refund-ban-page-relation]").forEach((input) => {
+    input.addEventListener("change", () => {
+      state.refundBanPolicy.relation = input.value;
+      syncRefundBanConditionLegacyFields();
+      renderRefundBanPolicyPage();
+    });
+  });
+  pageContent.querySelectorAll("[data-refund-ban-policy-condition]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const condition = getRefundBanConditions().find((item) => item.metric === input.dataset.refundBanPolicyCondition);
+      if (!condition) return;
+      condition.enabled = input.checked;
+      syncRefundBanConditionLegacyFields();
+      renderRefundBanPolicyPage();
+    });
+  });
+  pageContent.querySelectorAll("[data-refund-ban-rule-edit]").forEach((button) => {
+    button.addEventListener("click", () => openRefundBanRuleModal(button.dataset.refundBanRuleEdit));
+  });
+  pageContent.querySelectorAll("[data-refund-ban-page-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.refundBanPolicy.disposalAction = button.dataset.refundBanPageAction;
+      renderRefundBanPolicyPage();
+    });
+  });
+  pageContent.querySelectorAll("[data-refund-ban-page-method]").forEach((input) => {
+    input.addEventListener("change", () => {
+      state.refundBanPolicy.repaymentMethods = [input.value];
+      renderRefundBanPolicyPage();
+    });
+  });
+  pageContent.querySelector("[data-refund-ban-page-url]")?.addEventListener("input", (event) => {
+    state.refundBanPolicy.repaymentUrl = event.target.value;
+  });
+  pageContent.querySelector("[data-refund-ban-page-cancel]")?.addEventListener("click", cancelRefundBanPolicyPage);
+  pageContent.querySelector("[data-refund-ban-page-save]")?.addEventListener("click", () => {
+    const errors = validateRefundBanPolicy();
+    state.refundBanPolicyErrors = errors;
+    const message = Object.values(errors)[0];
+    if (message) {
+      showToast(message);
+      return;
+    }
+    openRefundBanSaveConfirm();
   });
 }
 
@@ -7243,40 +7654,48 @@ function bindRefundBanRuleModalActions() {
   });
   overlay?.querySelector("[data-rule-add-currency]")?.addEventListener("click", () => {
     addBehaviorRuleCurrency();
-    renderRefundBanPolicyDrawer();
+    if (state.currentPage === "refund-ban-policy") renderOverlay();
+    else renderRefundBanPolicyDrawer();
   });
   overlay?.querySelectorAll("[data-rule-add]").forEach((button) => {
     button.addEventListener("click", () => {
       addBehaviorRuleDraftRow(button.dataset.ruleAdd, state.behaviorRuleDraft?.kind);
-      renderRefundBanPolicyDrawer();
+      if (state.currentPage === "refund-ban-policy") renderOverlay();
+      else renderRefundBanPolicyDrawer();
     });
   });
   overlay?.querySelectorAll("[data-rule-delete-section]").forEach((button) => {
     button.addEventListener("click", () => {
       removeBehaviorRuleDraftRow(button.dataset.ruleDeleteSection, button.dataset.ruleRowId);
-      renderRefundBanPolicyDrawer();
+      if (state.currentPage === "refund-ban-policy") renderOverlay();
+      else renderRefundBanPolicyDrawer();
     });
   });
   overlay?.querySelector("#refund-ban-rule-confirm")?.addEventListener("click", saveRefundBanRuleModal);
 }
 
 const refundDisposalRows = [
-  { index: 6, status: "游戏登录封禁", sdkId: "789123456", passportId: "789123456", account: "789123456", repaymentStatus: "未补款", debt: "USD 12.50", debtOrders: 10, repayment: "USD 12.50", repaymentTime: "-" },
-  { index: 5, status: "正常", sdkId: "654987321", passportId: "654987321", account: "654987321", repaymentStatus: "已补款", debt: "USD 15.99", debtOrders: 2, repayment: "USD 15.99", repaymentTime: "2026-04-13 12:00:00" },
-  { index: 4, status: "游戏登录封禁", sdkId: "543216789", passportId: "543216789", account: "543216789", repaymentStatus: "未补款", debt: "USD 8.75", debtOrders: 3, repayment: "USD 8.75", repaymentTime: "-" },
-  { index: 3, status: "游戏登录封禁", sdkId: "432198765", passportId: "432198765", account: "432198765", repaymentStatus: "未补款", debt: "USD 22.00", debtOrders: 4, repayment: "USD 22.00", repaymentTime: "-" },
-  { index: 2, status: "游戏登录封禁", sdkId: "321654987", passportId: "321654987", account: "321654987", repaymentStatus: "未补款", debt: "USD 10.25", debtOrders: 5, repayment: "USD 10.25", repaymentTime: "-" },
-  { index: 1, status: "游戏登录封禁", sdkId: "219876543", passportId: "219876543", account: "219876543", repaymentStatus: "未补款", debt: "USD 18.50", debtOrders: 6, repayment: "USD 18.50", repaymentTime: "-" }
+  { index: 6, status: "封禁中", sdkId: "101200021301203", passportId: "P101200021301203", account: "sgs123123", refundChannel: "App Store", repaymentStatus: "未补款", debt: "¥648.00", debtOrders: 3, repayment: "¥648.00", repaymentTime: "-" },
+  { index: 5, status: "已解封", sdkId: "101200021301203", passportId: "P101200021301203", account: "sgs123123", refundChannel: "Google Play", repaymentStatus: "已补款", debt: "¥328.00", debtOrders: 3, repayment: "¥328.00", repaymentTime: "2026-07-29 13:48" },
+  { index: 4, status: "观察中", sdkId: "101200021301203", passportId: "P101200021301203", account: "sgs123123", refundChannel: "App Store", repaymentStatus: "无需补款", debt: "¥30.00", debtOrders: 3, repayment: "¥0.00", repaymentTime: "-" },
+  { index: 3, status: "观察中", sdkId: "101200021301203", passportId: "P101200021301203", account: "sgs123123", refundChannel: "Google Play", repaymentStatus: "已补款", debt: "¥328.00", debtOrders: 3, repayment: "¥100.00", repaymentTime: "2026-07-29 13:48" },
+  { index: 2, status: "观察中", sdkId: "101200021301203", passportId: "P101200021301203", account: "sgs123123", refundChannel: "App Store", repaymentStatus: "已补款", debt: "¥328.00", debtOrders: 3, repayment: "¥100.00", repaymentTime: "2026-07-29 13:48" },
+  { index: 1, status: "观察中", sdkId: "101200021301203", passportId: "P101200021301203", account: "sgs123123", refundChannel: "Google Play", repaymentStatus: "已补款", debt: "¥328.00", debtOrders: 3, repayment: "¥100.00", repaymentTime: "2026-07-29 13:48" }
 ];
 
 function getRefundDisposalRows() {
   const filters = state.refundDisposalAppliedFilters || {};
   const keyword = String(filters.account || "").trim().toLowerCase();
   return refundDisposalRows.filter((row) => {
-    const accountField = filters.accountType === "通行证ID" ? row.passportId : row.sdkId;
+    const accountField = filters.accountType === "通行证ID"
+      ? row.passportId
+      : filters.accountType === "SDKID"
+        ? row.sdkId
+        : row.account;
     return (!keyword || accountField.toLowerCase().includes(keyword))
-      && (!filters.accountStatus || filters.accountStatus === "全部" || row.status === filters.accountStatus)
-      && (!filters.repaymentStatus || filters.repaymentStatus === "全部" || row.repaymentStatus === filters.repaymentStatus);
+      && (!filters.refundChannel || row.refundChannel === filters.refundChannel)
+      && (!filters.accountStatus || row.status === filters.accountStatus)
+      && (!filters.repaymentStatus || row.repaymentStatus === filters.repaymentStatus);
   });
 }
 
@@ -7294,72 +7713,102 @@ function renderRefundDisposalPage() {
           <span>账号</span>
           <div class="refund-account-control">
             <select data-refund-filter="accountType">
+              <option ${filters.accountType === "账号名" ? "selected" : ""}>账号名</option>
               <option ${filters.accountType === "SDKID" ? "selected" : ""}>SDKID</option>
               <option ${filters.accountType === "通行证ID" ? "selected" : ""}>通行证ID</option>
             </select>
-            <input data-refund-filter="account" value="${escapeHtml(filters.account)}" placeholder="输入${escapeHtml(filters.accountType)}" />
+            <input data-refund-filter="account" value="${escapeHtml(filters.account)}" placeholder="输入${escapeHtml(filters.accountType)}" autocomplete="off" />
           </div>
+        </label>
+        <label>
+          <span>退款渠道</span>
+          <select data-refund-filter="refundChannel">
+            <option value="">选择退款渠道</option>
+            ${["App Store", "Google Play"].map((item) => `<option ${filters.refundChannel === item ? "selected" : ""}>${item}</option>`).join("")}
+          </select>
         </label>
         <label>
           <span>账号状态</span>
           <select data-refund-filter="accountStatus">
-            ${["全部", "游戏登录封禁", "正常"].map((item) => `<option ${filters.accountStatus === item ? "selected" : ""}>${item}</option>`).join("")}
+            <option value="">选择账号状态</option>
+            ${["封禁中", "观察中", "已解封"].map((item) => `<option ${filters.accountStatus === item ? "selected" : ""}>${item}</option>`).join("")}
           </select>
         </label>
         <label>
           <span>补款状态</span>
           <select data-refund-filter="repaymentStatus">
-            ${["全部", "未补款", "已补款"].map((item) => `<option ${filters.repaymentStatus === item ? "selected" : ""}>${item}</option>`).join("")}
+            <option value="">选择补款状态</option>
+            ${["未补款", "已补款", "无需补款"].map((item) => `<option ${filters.repaymentStatus === item ? "selected" : ""}>${item}</option>`).join("")}
           </select>
         </label>
-        <label class="refund-filter-time">
-          <span>时间</span>
-          <div class="refund-time-control">
-            <input data-refund-filter="time" value="${escapeHtml(filters.time)}" />
-            <i class="fa-regular fa-calendar-days refund-time-icon" aria-hidden="true"></i>
-          </div>
-        </label>
         <div class="refund-filter-actions">
-          <button class="refund-reset-btn" type="button" data-refund-reset><span>↻</span>重置</button>
-          <button class="refund-query-btn" type="button" data-refund-query><span>⌕</span>查询</button>
+          <button class="refund-reset-btn" type="button" data-refund-reset><i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i>重置</button>
+          <button class="refund-query-btn" type="button" data-refund-query><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>查询</button>
         </div>
       </section>
 
       <section class="refund-list-card">
         <div class="refund-list-toolbar">
-          <h2>账号列表</h2>
+          <h2>欠款账号列表</h2>
         </div>
         <div class="refund-table-wrap">
           <table class="refund-disposal-table">
+            <colgroup>
+              <col class="refund-col-account" />
+              <col class="refund-col-channel" />
+              <col class="refund-col-debt" />
+              <col class="refund-col-repayment" />
+              <col class="refund-col-time" />
+              <col class="refund-col-status" />
+              <col class="refund-col-action" />
+            </colgroup>
             <thead>
               <tr>
-                <th>序号</th><th>账号状态</th><th>SDKID</th><th>通行证ID</th><th>账号名</th>
-                <th>补款状态</th><th>欠款金额</th><th>欠款订单数</th><th>补款金额</th><th>补款时间</th><th>操作</th>
+                <th><span class="refund-head-account">欠款账号</span></th>
+                <th><span class="refund-head-channel">退款渠道</span></th>
+                <th><span class="refund-head-money">欠款金额</span></th>
+                <th><span class="refund-head-money">补款金额</span></th>
+                <th><span class="refund-head-time">补款时间</span></th>
+                <th><span class="refund-head-status">账号状态</span></th>
+                <th><span class="refund-head-action">操作</span></th>
               </tr>
             </thead>
             <tbody>
               ${rows.map((row) => `
                 <tr>
-                  <td>${row.index}</td>
-                  <td><span class="refund-status ${row.status === "正常" ? "success" : "danger"}">${row.status}</span></td>
-                  <td>${renderRefundCopyValue(row.sdkId)}</td>
-                  <td>${renderRefundCopyValue(row.passportId)}</td>
-                  <td>${renderRefundCopyValue(row.account)}</td>
-                  <td><span class="refund-status ${row.repaymentStatus === "已补款" ? "success" : "danger"}">${row.repaymentStatus}</span></td>
-                  <td>${row.debt}</td><td>${row.debtOrders}</td><td>${row.repayment}</td><td>${row.repaymentTime}</td>
+                  <td>
+                    <div class="refund-account-cell">
+                      <div class="refund-account-name">${escapeHtml(row.account)}<button type="button" data-copy-text="${escapeHtml(row.sdkId)}" aria-label="复制账号ID"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></div>
+                      <div class="refund-account-id">${escapeHtml(row.sdkId)}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="refund-channel-cell">
+                      ${row.refundChannel === "App Store"
+                        ? `<span class="refund-app-store-icon" aria-hidden="true">A</span>`
+                        : `<span class="refund-google-play-icon" aria-hidden="true"><i class="fa-brands fa-google-play"></i></span>`}
+                      <span>${escapeHtml(row.refundChannel)}</span>
+                    </div>
+                  </td>
+                  <td><div class="refund-money-cell debt"><strong>${escapeHtml(row.debt)}</strong><small>${row.debtOrders} 笔欠款</small></div></td>
+                  <td><div class="refund-money-cell ${row.repaymentStatus === "已补款" ? "paid" : row.repaymentStatus === "无需补款" ? "waived" : "unpaid"}"><strong>${escapeHtml(row.repayment)}</strong><small>${escapeHtml(row.repaymentStatus)}</small></div></td>
+                  <td><div class="refund-time-cell">${escapeHtml(row.repaymentTime)}</div></td>
+                  <td><span class="refund-account-status ${row.status === "封禁中" ? "danger" : row.status === "已解封" ? "success" : "warning"}"><i aria-hidden="true"></i>${escapeHtml(row.status)}</span></td>
                   <td class="refund-actions">
-                    <button type="button" data-refund-debt="${row.index}">查看欠款</button>
-                    <button type="button" data-refund-${row.repaymentStatus === "已补款" ? "detail" : "configure"}="${row.index}">
-                      ${row.repaymentStatus === "已补款" ? "查看补款" : "配置补款"}
-                    </button>
+                    <button type="button" data-refund-detail="${row.index}">查看详情</button>
+                    ${row.status === "已解封" ? "" : `<button type="button" data-refund-configure="${row.index}">配置补款</button>`}
+                    ${row.status === "封禁中" ? `<button class="refund-unblock-action" type="button" data-refund-unblock="${row.index}">账号解封</button>` : ""}
                   </td>
                 </tr>
-              `).join("") || `<tr><td class="refund-empty" colspan="11">暂无符合条件的账号</td></tr>`}
+              `).join("") || `<tr><td class="refund-empty" colspan="7">暂无符合条件的账号</td></tr>`}
             </tbody>
           </table>
         </div>
         <div class="refund-pagination">
-          <span>共${rows.length}条记录</span><button type="button">‹</button><button class="active" type="button">1</button><button type="button">›</button>
+          <span>共${rows.length}条记录</span>
+          <button type="button" aria-label="上一页"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+          <button class="active" type="button" aria-current="page">1</button>
+          <button type="button" aria-label="下一页"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
         </div>
       </section>
     </section>
@@ -7377,18 +7826,18 @@ function renderRefundDisposalPage() {
   });
   pageContent.querySelector("[data-refund-reset]")?.addEventListener("click", () => {
     state.refundDisposalFilters = {
-      accountType: "SDKID",
+      accountType: "账号名",
       account: "",
-      accountStatus: "全部",
-      repaymentStatus: "全部",
-      time: "2026-04-13 12:00:00 ~ 2026-04-13 12:00:00"
+      refundChannel: "",
+      accountStatus: "",
+      repaymentStatus: ""
     };
     state.refundDisposalAppliedFilters = null;
     renderRefundDisposalPage();
   });
-  pageContent.querySelectorAll("[data-refund-debt]").forEach((button) => button.addEventListener("click", () => openRefundDisposalOverlay("refund-debt", button.dataset.refundDebt)));
-  pageContent.querySelectorAll("[data-refund-configure]").forEach((button) => button.addEventListener("click", () => openRefundDisposalOverlay("refund-configure", button.dataset.refundConfigure)));
   pageContent.querySelectorAll("[data-refund-detail]").forEach((button) => button.addEventListener("click", () => openRefundDisposalOverlay("refund-detail", button.dataset.refundDetail)));
+  pageContent.querySelectorAll("[data-refund-configure]").forEach((button) => button.addEventListener("click", () => openRefundDisposalOverlay("refund-configure", button.dataset.refundConfigure)));
+  pageContent.querySelectorAll("[data-refund-unblock]").forEach((button) => button.addEventListener("click", () => openRefundDisposalOverlay("refund-unban", button.dataset.refundUnblock)));
   bindCopyActions(pageContent);
 }
 
@@ -7397,6 +7846,7 @@ function openRefundDisposalOverlay(kind, rowIndex) {
   state.refundDisposalRepaymentMode = "ratio";
   state.refundDisposalRepaymentCurrency = "USD";
   state.refundDisposalRepaymentValue = "100";
+  state.refundDisposalUnbanPaid = "paid";
   state.modalOpen = true;
   state.modalKind = kind;
   renderOverlay();
@@ -13335,8 +13785,22 @@ function renderOverlay() {
     renderRefundBanPolicyDrawer();
     return;
   }
+  if (state.modalKind === "refund-ban-rule") {
+    drawerRoot.innerHTML = renderRefundBanRuleModalMarkup();
+    bindRefundBanRuleModalActions();
+    return;
+  }
+  if (state.modalKind === "refund-ban-save-confirm") {
+    drawerRoot.innerHTML = renderRefundBanSaveConfirmMarkup();
+    bindRefundBanSaveConfirmActions();
+    return;
+  }
   if (state.modalKind === "refund-debt" || state.modalKind === "refund-detail") {
     renderRefundDisposalDrawer();
+    return;
+  }
+  if (state.modalKind === "refund-unban") {
+    renderRefundUnbanModal();
     return;
   }
   if (state.modalKind === "refund-configure") {
@@ -13360,77 +13824,158 @@ function renderRefundAccountInfo(row) {
         <div><span>SDKID</span><strong>${escapeHtml(row.sdkId)}</strong></div>
         <div><span>通行证ID</span><strong>${escapeHtml(row.passportId)}</strong></div>
         <div><span>账号名</span><strong>${escapeHtml(row.account)}</strong></div>
-        <div><span>账号状态</span><strong class="${row.status === "正常" ? "refund-detail-success" : "refund-detail-danger"}">${escapeHtml(row.status)}</strong></div>
+        <div><span>账号状态</span><strong class="${row.status === "封禁中" ? "refund-detail-danger" : row.status === "已解封" ? "refund-detail-success" : "refund-detail-warning"}">${escapeHtml(row.status)}</strong></div>
       </div>
     </section>
   `;
 }
 
-function renderRefundDisposalDrawer() {
-  const row = state.refundDisposalActiveRow || refundDisposalRows[0];
-  const isDebt = state.modalKind === "refund-debt";
-  const debtAmounts = ["12.50", "15.99", "8.75", "22.00", "10.25", "18.50"];
-  drawerRoot.innerHTML = `
-    <div class="refund-overlay">
-      <aside class="refund-detail-drawer">
-        <button class="refund-drawer-close" type="button" aria-label="关闭">×</button>
-        <header>${isDebt ? "账号欠款详情" : "账号补款详情"}</header>
+function renderRefundDisposalDrawerMarkup(row) {
+  const debtOrders = [
+    ["789123456...", "12.50"],
+    ["654987321...", "15.99"],
+    ["543216789...", "8.75"],
+    ["432198765...", "22.00"]
+  ];
+  const riskRecords = [
+    { title: "系统自动解封", time: "2026-04-15 14:32:00", tone: "success", amount: "" },
+    { title: "玩家自助补款", time: "2026-04-14 16:20:00", tone: "success", amount: "+¥128.00" },
+    { title: "系统自动封禁", time: "2026-04-14 09:05:00", tone: "danger", amount: "" },
+    { title: "苹果订单退款", time: "2026-04-13 18:48:00", tone: "danger", amount: "-¥128.00" },
+    { title: "账号订单充值", time: "2026-04-12 11:30:00", tone: "primary", amount: "+¥128.00" }
+  ];
+  return `
+    <div class="refund-overlay refund-detail-overlay">
+      <aside class="refund-detail-drawer" aria-label="欠款账号详情">
+        <button class="refund-drawer-close" type="button" aria-label="关闭详情抽屉"><img src="./assets/refund-ban/close.svg" alt="" /></button>
+        <header>欠款账号详情</header>
         <div class="refund-drawer-body">
           ${renderRefundAccountInfo(row)}
-          ${isDebt ? `
-            <section class="refund-drawer-section">
-              <h3>欠款信息</h3>
-              <div class="refund-debt-table-wrap">
-                <table class="refund-debt-table">
-                  <thead><tr><th>SDK订单号</th><th>订单金额</th><th>支付方式</th><th>下单IP</th><th>下单设备</th><th>下单时间</th></tr></thead>
-                  <tbody>
-                    ${debtAmounts.map((amount, index) => {
-                      const order = ["789123456", "654987321", "543216789", "432198765", "321654987", "219876543"][index];
-                      return `<tr>
-                        <td>${renderRefundCopyValue(`${order}...`)}</td>
-                        <td>USD ${amount}</td><td>ApplePay</td>
-                        <td>${renderRefundCopyValue("192.168.1.10")}</td>
-                        <td>${renderRefundCopyValue(`${order}...`)}</td>
-                        <td>2026-04-13 12:00:00</td>
-                      </tr>`;
-                    }).join("")}
-                  </tbody>
-                </table>
-              </div>
-              <div class="refund-debt-summary">
-                <span>共<strong>10</strong>笔欠款订单，累计金额 <strong>USD 10.00</strong></span>
-                <div class="refund-pagination compact"><button>‹</button><button class="active">1</button><button>›</button></div>
-              </div>
-            </section>
-          ` : `
-            <section class="refund-drawer-section">
-              <h3>订单信息</h3>
-              <div class="refund-detail-grid refund-order-grid">
-                <div><span>SDK订单号</span><strong>${renderRefundCopyValue("1823812381833")}</strong></div>
-                <div><span>三方订单号</span><strong>${renderRefundCopyValue("1823812381833")}</strong></div>
-                <div><span>支付方式</span><strong>微信</strong></div>
-                <div><span>订单来源</span><strong>网页支付</strong></div>
-                <div><span>下单时间</span><strong>2026-04-12 11:22:33</strong></div>
-                <div><span>支付时间</span><strong>2026-04-12 11:22:33</strong></div>
-                <div><span>订单金额</span><strong>648</strong></div>
-                <div><span>订单币种</span><strong>RMB</strong></div>
-                <div><span>实际支付金额</span><strong>648</strong></div>
-                <div><span>实际支付币种</span><strong>RMB</strong></div>
-                <div><span>下单IP</span><strong>${renderRefundCopyValue("123.111.2.0")}</strong></div>
-                <div><span>下单IP归属地</span><strong>山东 济南</strong></div>
-              </div>
-            </section>
-          `}
+          <section class="refund-drawer-section refund-order-section">
+            <h3>欠款订单</h3>
+            <div class="refund-account-debt-notice">账号累计欠款 3 单，共计 100.00 USD，当前补款 0.00USD</div>
+            <div class="refund-debt-table-wrap">
+              <table class="refund-debt-table">
+                <thead><tr><th>SDK订单号</th><th>订单金额</th><th>支付方式</th><th>下单时间</th><th>退款时间</th></tr></thead>
+                <tbody>
+                  ${debtOrders.map(([order, amount]) => `<tr>
+                    <td>${escapeHtml(order)}</td>
+                    <td>USD ${escapeHtml(amount)}</td>
+                    <td>ApplePay</td>
+                    <td>2026-04-13 12:00:00</td>
+                    <td>2026-04-13 12:00:00</td>
+                  </tr>`).join("")}
+                </tbody>
+              </table>
+            </div>
+            <div class="refund-drawer-pagination" aria-label="欠款订单分页">
+              <button type="button" aria-label="上一页"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+              <button class="active" type="button" aria-current="page">1</button>
+              <button type="button" aria-label="下一页"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+            </div>
+          </section>
+          <section class="refund-drawer-section refund-risk-section">
+            <h3>风险记录</h3>
+            <div class="refund-risk-timeline">
+              ${riskRecords.map((record, index) => `<article class="refund-risk-item ${record.tone}">
+                <div class="refund-risk-marker"><i aria-hidden="true"></i>${index < riskRecords.length - 1 ? `<span aria-hidden="true"></span>` : ""}</div>
+                <div class="refund-risk-copy">
+                  <strong>${escapeHtml(record.title)}</strong>
+                  <time>${escapeHtml(record.time)}</time>
+                  ${record.amount ? `<b>${escapeHtml(record.amount)}</b>` : ""}
+                </div>
+              </article>`).join("")}
+            </div>
+          </section>
         </div>
+        <footer class="refund-drawer-footer">
+          <button class="refund-drawer-unban" type="button" data-refund-drawer-unban>解封</button>
+          <button class="refund-drawer-cancel" type="button" data-refund-drawer-close>关闭</button>
+        </footer>
       </aside>
     </div>
   `;
+}
+
+function bindRefundDisposalDrawerActions() {
   const overlay = drawerRoot.querySelector(".refund-overlay");
   overlay.addEventListener("click", (event) => {
     if (event.target === overlay) closeModal();
   });
-  drawerRoot.querySelector(".refund-drawer-close")?.addEventListener("click", closeModal);
+  drawerRoot.querySelectorAll(".refund-drawer-close,[data-refund-drawer-close]").forEach((button) => button.addEventListener("click", closeModal));
+  drawerRoot.querySelector("[data-refund-drawer-unban]")?.addEventListener("click", () => renderRefundUnbanModal(true));
   bindCopyActions(drawerRoot);
+}
+
+function renderRefundDisposalDrawer() {
+  const row = state.refundDisposalActiveRow || refundDisposalRows[0];
+  drawerRoot.innerHTML = renderRefundDisposalDrawerMarkup(row);
+  bindRefundDisposalDrawerActions();
+}
+
+function renderRefundUnbanModal(preserveDrawer = false) {
+  const row = state.refundDisposalActiveRow || refundDisposalRows[0];
+  const markup = `
+    <div class="refund-overlay refund-modal-overlay refund-unban-overlay" role="presentation">
+      <section class="refund-unban-modal" role="dialog" aria-modal="true" aria-labelledby="refund-unban-title">
+        <header>
+          <h2 id="refund-unban-title">账号解封</h2>
+          <button type="button" aria-label="关闭" data-refund-unban-cancel>×</button>
+        </header>
+        <div class="refund-unban-body">
+          <div class="refund-unban-notice">解封后用户将立即恢复登录权限，请确认补款或申诉已核验！</div>
+          <div class="refund-unban-form">
+            <div class="refund-unban-row">
+              <span>补款情况</span>
+              <div class="refund-unban-radios">
+                <label><input type="radio" name="refund-unban-paid" value="paid" ${state.refundDisposalUnbanPaid === "paid" ? "checked" : ""} /> 已补款 <img src="./assets/refund-ban/info-circle.svg" alt="" title="请确认补款金额已经核验" /></label>
+                <label><input type="radio" name="refund-unban-paid" value="unpaid" ${state.refundDisposalUnbanPaid === "unpaid" ? "checked" : ""} /> 未补款</label>
+              </div>
+            </div>
+            <div class="refund-unban-row">
+              <label for="refund-unban-amount">补款金额</label>
+              <div class="refund-unban-amount">
+                <input id="refund-unban-amount" type="number" min="0" step="0.01" value="1000" />
+                <select aria-label="补款币种"><option>USD</option><option>CNY</option><option>EUR</option></select>
+              </div>
+            </div>
+            <div class="refund-unban-row refund-unban-reason-row">
+              <label for="refund-unban-reason">解封原因</label>
+              <textarea id="refund-unban-reason" placeholder="请输入解封原因"></textarea>
+            </div>
+          </div>
+        </div>
+        <footer>
+          <button class="refund-modal-cancel" type="button" data-refund-unban-cancel>取消</button>
+          <button class="refund-modal-confirm" type="button" data-refund-unban-confirm>确认解封</button>
+        </footer>
+      </section>
+    </div>
+  `;
+  if (preserveDrawer) drawerRoot.insertAdjacentHTML("beforeend", markup);
+  else drawerRoot.innerHTML = markup;
+  const overlay = drawerRoot.querySelectorAll(".refund-unban-overlay");
+  const activeOverlay = overlay[overlay.length - 1];
+  const dismiss = () => preserveDrawer ? activeOverlay.remove() : closeModal();
+  activeOverlay?.addEventListener("click", (event) => {
+    if (event.target === activeOverlay) dismiss();
+  });
+  activeOverlay?.querySelectorAll("[data-refund-unban-cancel]").forEach((button) => button.addEventListener("click", dismiss));
+  activeOverlay?.querySelectorAll('input[name="refund-unban-paid"]').forEach((input) => input.addEventListener("change", () => {
+    state.refundDisposalUnbanPaid = input.value;
+  }));
+  activeOverlay?.querySelector("[data-refund-unban-confirm]")?.addEventListener("click", () => {
+    const amount = Number.parseFloat(activeOverlay.querySelector("#refund-unban-amount")?.value || "0");
+    row.status = "观察中";
+    if (state.refundDisposalUnbanPaid === "paid") {
+      row.repaymentStatus = "已补款";
+      row.repayment = `¥${Number.isFinite(amount) ? amount.toFixed(2) : "0.00"}`;
+      row.repaymentTime = "2026-07-29 13:48";
+    }
+    closeModal();
+    renderRefundDisposalPage();
+    showToast("账号已解封，当前进入观察中");
+  });
 }
 
 function renderRefundRepaymentModal() {
